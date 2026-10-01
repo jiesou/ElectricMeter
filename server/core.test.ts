@@ -11,8 +11,8 @@ const { historyOf, lastStateOf } = await import("./core/db.ts");
 
 const DEFS = [
   { key: "light", name: "照明", kind: "relay" as const },
-  { key: "light_power", name: "照明功率", kind: "meter" as const, unit: "W" },
-  { key: "meter", name: "电能表", kind: "meter" as const, unit: "kWh" },
+  { key: "light_power", name: "照明功率", kind: "meter" as const },
+  { key: "light_energy", name: "照明电量", kind: "meter" as const },
 ];
 
 const t0 = 1_800_000_000;
@@ -48,7 +48,7 @@ test("post_entities 登记实体", () => {
   const d = fakeDevice("esp-101");
   d.post("post_entities", { ts: t0, name: "301 电表箱", model: "esp32-relay-3", entities: DEFS });
   expect(hub.getEntity("esp-101:light")!.name).toBe("照明");
-  expect(hub.getEntity("esp-101:light_power")!.unit).toBe("W");
+  expect(hub.getEntity("esp-101:light_power")!.kind).toBe("meter");
   expect(hub.isOnline("esp-101")).toBe(true);
 });
 

@@ -30,7 +30,7 @@ async function get<T>(path: string): Promise<T> {
 
 const dump = (v: unknown) => console.log(JSON.stringify(v, null, 2));
 const stateText = (e: Entity) =>
-  e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : `${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim();
+  e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : Number(e.state).toFixed(1);
 
 type DeviceRow = Device & { power: number; energy: number };
 
@@ -70,9 +70,9 @@ async function entities() {
   if (JSON_OUT) return dump(rows);
   if (!rows.length) return console.log(c.gray("没有匹配的实体"));
   table(
-    ["REF", "名称", "类型", "单位", "状态"],
-    rows.map((e) => [e.ref, e.name, e.kind, e.unit ?? c.gray("—"), stateText(e)]),
-    [4],
+    ["REF", "名称", "类型", "状态"],
+    rows.map((e) => [e.ref, e.name, e.kind, stateText(e)]),
+    [3],
   );
 }
 
@@ -80,7 +80,7 @@ async function show(ref: string) {
   const e = await get<Entity>(`/entities/${ref}`);
   if (JSON_OUT) return dump(e);
   console.log(`${c.bold(e.name)}  ${c.dim(e.ref)}`);
-  console.log(`  类型    ${e.kind}${e.unit ? ` · ${e.unit}` : ""}`);
+  console.log(`  类型    ${e.kind}`);
   console.log(`  状态    ${stateText(e)}`);
   console.log(`  设备    ${e.deviceId}`);
   console.log(`  更新时间 ${clock(e.ts)}`);
@@ -166,7 +166,7 @@ function showEvent(e: Event) {
   const t = c.dim(clock(e.ts));
   if (e.type === "state") {
     const v =
-      e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : c.bold(`${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim());
+      e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : c.bold(Number(e.state).toFixed(1));
     console.log(`${t} ${pad(e.ref, 22)} ${pad(e.name, 10)} ${pad(v, 12)}`);
   } else {
     console.log(`${t} ${pad(e.deviceId, 22)} ${e.online ? c.green("上线") : c.red("掉线")}`);

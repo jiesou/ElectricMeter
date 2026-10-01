@@ -61,12 +61,15 @@ export type Action = "turn_on" | "turn_off" | "toggle";
 /** relay = 一路可通断的回路；meter = 一只读数 */
 export type Kind = "relay" | "meter";
 
+/**
+ * 没有 unit 字段。瞬时功率和累计电量天生就是两个量，设备各发各的：
+ *   xxx_power  实时瓦数      xxx_energy 自上电以来的千瓦时数
+ * 少一个字符串，下位机的内存和 JSON 拼接都省一份。
+ */
 export interface EntityDef {
   key: string;
   name: string;
   kind: Kind;
-  /** W / kWh。W 的读数积分出来就是电量，kWh 的是累计读数 */
-  unit?: string;
 }
 
 export interface Entity extends EntityDef {
@@ -91,7 +94,7 @@ export interface StatPoint {
   mean: number; // 时间加权均值，不是 AVG()
   min: number;
   max: number;
-  /** unit=W：功率积分，瓦秒，÷3.6e6 得 kWh。unit=kWh：桶末累计读数，查询时做差 */
+  /** 功率读数：积分出的瓦秒，÷3.6e6 得 kWh。累计电量读数：桶末读数，查询时做首尾差 */
   sum: number;
 }
 
@@ -111,5 +114,5 @@ export interface Target {
 
 /** 观察者（SSE）收到的事件 */
 export type Event =
-  | { type: "state"; ts: number; ref: Ref; kind: Kind; name: string; state: number | boolean; unit?: string }
+  | { type: "state"; ts: number; ref: Ref; kind: Kind; name: string; state: number | boolean }
   | { type: "device"; ts: number; deviceId: string; online: boolean };

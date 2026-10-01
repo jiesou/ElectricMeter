@@ -39,8 +39,11 @@ const emit = (e: Event) => {
 };
 const send = (deviceId: string, m: WSMessage) => conns.get(deviceId)?.ws.send(JSON.stringify(m));
 
-/** kWh 是累计读数，它的时均没意义，sum 直接存桶末读数，查询时做首尾差 */
-const isTotal = (unit?: string) => unit === "kWh";
+/**
+ * key 以 _energy 结尾的是电表累计读数：时均没意义，sum 直接存桶末读数，查询时做首尾差。
+ * _power 结尾的是实时瓦数：按时间加权积分，sum 就是这段的瓦秒。
+ */
+const isTotal = (key: string) => key.endsWith("_energy");
 
 /** 连上后发一次：这块板子自己有什么 */
 handlers.post_entities = (device, _reply, m) => {
@@ -85,11 +88,11 @@ handlers.post_state = (device, _reply, m) => {
     } else {
       // 读数每个采样都要记：时间积分靠「上一段持续了多久」推进
       const v = Number(u.state);
-      record(ref, v, ts, isTotal(e.unit));
+      record(ref, v, ts, isTotal(e.key));
       if (e.state !== v) {
         e.state = v;
         e.ts = ts;
-        emit({ type: "state", ts, ref, kind: e.kind, name: e.name, state: v, unit: e.unit });
+        emit({ type: "state", ts, ref, kind: e.kind, name: e.name, state: v });
       }
     }
   }
@@ -172,7 +175,7 @@ export function resolve(target: Target): Entity[] {
 /** 总览：在线状态 + 当前功率 + 时段用电 */
 export function deviceTotals(from: number) {
   return listDevices().map((d) => {
-    const meters = listEntities().filter((e) => e.deviceId === d.id && e.unit === "W");
+    const meters = listEntities().filter((e) => e.deviceId === d.id && e.key.endsWith("_power"));
     return {
       ...d,
       power: meters.reduce((s, e) => s + Number(e.state), 0),

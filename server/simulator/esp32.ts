@@ -14,22 +14,25 @@ const NAME = process.env.NAME ?? `${DEVICE_ID.replace(/^esp-/, "")} 电表箱`;
 const HOST = process.env.WS ?? "ws://localhost:8080/ws";
 const INTERVAL = Number(process.env.INTERVAL ?? 500);
 
-const CIRCUITS: { key: Key; name: string }[] = [
+type Circuit = "light" | "socket" | "ac";
+const CIRCUITS: { key: Circuit; name: string }[] = [
   { key: "light", name: "照明" },
   { key: "socket", name: "插座" },
   { key: "ac", name: "空调" },
 ];
 
+// 每路回路三个实体：开关、实时瓦数、自上电以来的千瓦时数
 const ENTITIES: EntityDef[] = [
   ...CIRCUITS.flatMap<EntityDef>((c) => [
     { key: c.key, name: c.name, kind: "relay" },
-    { key: `${c.key}_power`, name: `${c.name}功率`, kind: "meter", unit: "W" },
+    { key: `${c.key}_power`, name: `${c.name}功率`, kind: "meter" },
+    { key: `${c.key}_energy`, name: `${c.name}电量`, kind: "meter" },
   ]),
-  { key: "meter", name: "电能表", kind: "meter", unit: "kWh" },
+  { key: "total_energy", name: "总电量", kind: "meter" },
 ];
 
 const relay: Record<Key, boolean> = { light: false, socket: true, ac: true };
-let meter = 128.4; // 电能表累计读数
+const energy: Record<Key, number> = { light: 2.1, socket: 18.4, ac: 46.2, total_energy: 66.7 };
 let lastTick = 0;
 
 /** 电水壶：烧一阵歇一阵。占空比负载正是时间加权均值的用武之地——按样本取 AVG() 会算错 */
@@ -44,7 +47,7 @@ function kettle() {
   return kettleOn ? 1600 : 0;
 }
 
-function sample() {
+function sample(): Record<Circuit, number> {
   // 房客随手开关
   if (Math.random() < 0.01) relay.light = !relay.light;
   if (Math.random() < 0.0075) relay.socket = !relay.socket;
@@ -65,19 +68,22 @@ const now = () => Math.floor(Date.now() / 1000);
 
 function tick() {
   const ts = now();
-  const power = sample();
-  // 电能表按功率积分累计，重启不归零
-  if (lastTick) meter += ((power.light + power.socket + power.ac) * (ts - lastTick)) / 3.6e6;
+  const p = sample();
+  // 电量在板子上就累加好了，服务器只管存。重启不归零
+  if (lastTick) {
+    const dt = ts - lastTick;
+    for (const c of CIRCUITS) energy[c.key] += (p[c.key] * dt) / 3.6e6;
+    energy.total_energy += ((p.light + p.socket + p.ac) * dt) / 3.6e6;
+  }
   lastTick = ts;
   send({
     type: "post_state",
     ts,
     states: [
       ...CIRCUITS.map((c) => ({ key: c.key, state: relay[c.key] })),
-      { key: "light_power", state: power.light },
-      { key: "socket_power", state: power.socket },
-      { key: "ac_power", state: power.ac },
-      { key: "meter", state: Number(meter.toFixed(3)) },
+      ...CIRCUITS.map((c) => ({ key: `${c.key}_power`, state: p[c.key] })),
+      ...CIRCUITS.map((c) => ({ key: `${c.key}_energy`, state: Number(energy[c.key].toFixed(4)) })),
+      { key: "total_energy", state: Number(energy.total_energy.toFixed(4)) },
     ],
   });
 }
