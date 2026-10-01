@@ -1,0 +1,8 @@
+node_modules/
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# 另一个并行任务在写的 slintui，不进这个仓库
+slintui/

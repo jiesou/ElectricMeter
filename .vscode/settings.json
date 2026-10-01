@@ -1,0 +1,10 @@
+{
+  // Bun 官方扩展：Bun.serve / bun:sqlite / bun test 的类型和运行都靠它
+  "bun.bun.path": "bun",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/data": true
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev: server",
+      "type": "shell",
+      "command": "cd server && bun run dev",
+      "presentation": { "group": "dev" }
+    },
+    {
+      "label": "dev: sim",
+      "type": "shell",
+      "command": "cd server && bun run sim",
+      "presentation": { "group": "dev" }
+    },
+    {
+      "label": "dev",
+      "dependsOn": ["dev: server", "dev: sim"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "cd server && bun test",
+      "presentation": { "group": "test" },
+      "problemMatcher": []
+    },
+    {
+      "label": "check",
+      "type": "shell",
+      "command": "cd server && bun run check && cd ../cli && bunx tsc --noEmit",
+      "presentation": { "group": "test" },
+      "problemMatcher": []
+    },
+    {
+      "label": "cli",
+      "type": "shell",
+      "command": "cd cli && bun run index.ts",
+      "presentation": { "group": "cli" }
+    },
+    {
+      "label": "db: push",
+      "type": "shell",
+      "command": "cd server && bun run db:push"
+    }
+  ]
+}

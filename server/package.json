@@ -1,0 +1,23 @@
+{
+  "name": "server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "sim": "bun run simulator/esp32.ts",
+    "check": "bunx tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "db:push": "bunx prisma db push --schema prisma/schema.prisma"
+  },
+  "dependencies": {
+    "@em/shared": "workspace:*",
+    "@hono/bun": "^1.0.0",
+    "hono": "^4.13.0"
+  },
+  "devDependencies": {
+    "prisma": "^7.0.0",
+    "typescript": "^5.8.0"
+  }
+}
