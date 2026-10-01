@@ -129,8 +129,7 @@ kind: "relay"   // 一路可通断的回路
 **采集 → 计量 → 统计 → 通断**，全链路闭环，硬件没到货先用模拟器顶替
 
 - **shared/** 纯类型零依赖，`@em/shared` 一个包同时被 server 和 cli 引用
-  - `domain.ts` —— Device / Entity / StatSeries / Event / Action
-  - `protocol.ts` —— 下位机上下行消息；`state` / `ack` 是上行的，`welcome` / `action` / `ping` 是下行的
+  - `types.ts` —— 全部类型一个文件：协议基座 + 业务消息 + 领域
 - **server/**（Bun + Hono）
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
   - `core/db.ts` —— 三张表（`device` / `state` / `statistics`）建表与手写查询
