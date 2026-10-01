@@ -1,5 +1,6 @@
 # HA Recorder / Statistics 机制研究 → 老旧民宿用电持久化方案
 
+> **性质：agent 产出（subagent 调研），用户未确认，仅作参考。**
 > 源码基准：`home-assistant/core@89f7f5d`（db schema v53）。仅研究对比，不含实现代码。
 
 ---

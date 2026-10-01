@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "./index.ts",
-  "exports": { ".": "./index.ts" }
+  "main": "./types.ts",
+  "exports": { ".": "./types.ts" }
 }

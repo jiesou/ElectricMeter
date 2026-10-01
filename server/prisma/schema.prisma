@@ -18,13 +18,12 @@ model Device {
   lastSeen   Int    @default(0)
 }
 
-/// 开关的状态变化历史。只记 domain=switch —— 高频读数进 statistics，不进这里
+/// 开关的状态变化历史。高频读数进 statistics，不进这里
 model State {
-  deviceId  String
-  key       String
-  ts        Int
-  state     String
-  requested Int?
+  deviceId String
+  key      String
+  ts       Int
+  state    String
 
   @@id([deviceId, key, ts])
   @@index([ts])

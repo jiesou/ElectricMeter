@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS state (
   key       TEXT NOT NULL,
   ts        INTEGER NOT NULL,
   state     TEXT    NOT NULL,
-  requested INTEGER,
   PRIMARY KEY (device_id, key, ts)
 );
 CREATE INDEX IF NOT EXISTS state_ts ON state (ts);
@@ -78,37 +77,28 @@ export const device = {
   touch: (id: string, ts: number) => db.run("UPDATE device SET last_seen = ? WHERE id = ?", [ts, id]),
 };
 
-export function appendState(
-  deviceId: string,
-  key: string,
-  ts: number,
-  state: number | boolean,
-  requested?: boolean,
-) {
-  db.run("INSERT OR REPLACE INTO state (device_id, key, ts, state, requested) VALUES (?, ?, ?, ?, ?)", [
+export function appendState(deviceId: string, key: string, ts: number, state: number | boolean) {
+  db.run("INSERT OR REPLACE INTO state (device_id, key, ts, state) VALUES (?, ?, ?, ?)", [
     deviceId,
     key,
     ts,
     String(state),
-    requested === undefined ? null : requested ? 1 : 0,
   ]);
 }
 
 export function historyOf(deviceId: string, key: string, from: number, to: number) {
   return db
-    .query<
-      { ts: number; state: string; requested: number | null },
-      [string, string, number, number]
-    >("SELECT ts, state, requested FROM state WHERE device_id = ? AND key = ? AND ts >= ? AND ts < ? ORDER BY ts")
+    .query<{ ts: number; state: string }, [string, string, number, number]>(
+      "SELECT ts, state FROM state WHERE device_id = ? AND key = ? AND ts >= ? AND ts < ? ORDER BY ts",
+    )
     .all(deviceId, key, from, to);
 }
 
 export function lastStateOf(deviceId: string, key: string) {
   return db
-    .query<
-      { state: string; requested: number | null },
-      [string, string]
-    >("SELECT state, requested FROM state WHERE device_id = ? AND key = ? ORDER BY ts DESC LIMIT 1")
+    .query<{ state: string }, [string, string]>(
+      "SELECT state FROM state WHERE device_id = ? AND key = ? ORDER BY ts DESC LIMIT 1",
+    )
     .get(deviceId, key);
 }
 

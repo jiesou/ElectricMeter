@@ -29,11 +29,8 @@ async function get<T>(path: string): Promise<T> {
 }
 
 const dump = (v: unknown) => console.log(JSON.stringify(v, null, 2));
-const stateText = (e: Entity) => {
-  if (e.domain !== "switch") return `${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim();
-  const s = e.state ? c.green("通") : c.gray("断");
-  return e.requested !== undefined && e.requested !== e.state ? `${s} ${c.red("(令未生效)")}` : s;
-};
+const stateText = (e: Entity) =>
+  e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : `${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim();
 
 type DeviceRow = Device & { power: number; energy: number };
 
@@ -65,7 +62,7 @@ async function overview() {
 
 async function entities() {
   const q = new URLSearchParams();
-  for (const k of ["domain", "device"]) {
+  for (const k of ["kind", "device"]) {
     const v = flag(k);
     if (v) q.set(k, v);
   }
@@ -73,8 +70,8 @@ async function entities() {
   if (JSON_OUT) return dump(rows);
   if (!rows.length) return console.log(c.gray("没有匹配的实体"));
   table(
-    ["REF", "名称", "域", "语义", "状态"],
-    rows.map((e) => [e.ref, e.name, e.domain, e.deviceClass + (e.unit ? ` (${e.unit})` : ""), stateText(e)]),
+    ["REF", "名称", "类型", "单位", "状态"],
+    rows.map((e) => [e.ref, e.name, e.kind, e.unit ?? c.gray("—"), stateText(e)]),
     [4],
   );
 }
@@ -83,16 +80,16 @@ async function show(ref: string) {
   const e = await get<Entity>(`/entities/${ref}`);
   if (JSON_OUT) return dump(e);
   console.log(`${c.bold(e.name)}  ${c.dim(e.ref)}`);
-  console.log(`  域      ${e.domain} · ${e.deviceClass}${e.unit ? ` · ${e.unit}` : ""}`);
+  console.log(`  类型    ${e.kind}${e.unit ? ` · ${e.unit}` : ""}`);
   console.log(`  状态    ${stateText(e)}`);
   console.log(`  设备    ${e.deviceId}`);
   console.log(`  更新时间 ${clock(e.ts)}`);
 }
 
-async function call(service: Action) {
+async function call(action: Action) {
   const pos = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
   const target: Target = pos ? { entity: pos } : { device: flag("device") ?? "" };
-  const r = await fetch(`${HOST}/api/services/switch/${service}`, {
+  const r = await fetch(`${HOST}/api/actions/${action}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(target),
@@ -100,7 +97,8 @@ async function call(service: Action) {
   const j = await r.json();
   if (JSON_OUT) return dump(j);
   if (!r.ok) fail(j.error ?? "下发失败");
-  for (const x of j.results) console.log(x.ok ? `${c.green("✓")} ${x.ref}` : `${c.red("✗")} ${x.ref} ${x.error}`);
+  if (!j.sent) return console.log(c.red(`✗ 没有可开关的目标（或设备离线）`));
+  console.log(`${c.green("✓")} 下发 ${j.sent} 条，回执 ${j.acked} 条  ${c.dim(j.refs.join("  "))}`);
 }
 
 async function powerChart(ref: string) {
@@ -132,17 +130,14 @@ async function powerChart(ref: string) {
 async function history(ref: string) {
   const to = now();
   const from = to - Number(flag("hours") ?? 24) * 3600;
-  const j = await get<{ states: { ts: number; state: string; requested: number | null }[] }>(
-    `/history/${ref}?from=${from}&to=${to}`,
-  );
+  const j = await get<{ states: { ts: number; state: string }[] }>(`/history/${ref}?from=${from}&to=${to}`);
   if (JSON_OUT) return dump(j);
   if (!j.states.length) return console.log(c.gray("这段时间没有开关动作"));
   table(
-    ["时间", "实际", "最近命令", "持续"],
+    ["时间", "状态", "持续"],
     j.states.map((s, i) => [
       clock(s.ts),
       s.state === "true" ? c.green("通") : c.gray("断"),
-      s.requested === null ? c.gray("—") : s.requested ? c.green("通") : c.gray("断"),
       j.states[i + 1] ? `${j.states[i + 1].ts - s.ts}s` : c.gray("至今"),
     ]),
   );
@@ -171,26 +166,17 @@ function showEvent(e: Event) {
   const t = c.dim(clock(e.ts));
   if (e.type === "state") {
     const v =
-      e.domain === "switch"
-        ? e.state
-          ? c.green("通")
-          : c.gray("断")
-        : c.bold(`${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim());
-    const bad = e.domain === "switch" && e.requested !== undefined && e.requested !== e.state;
-    console.log(`${t} ${pad(e.ref, 22)} ${pad(e.name, 10)} ${pad(v, 12)} ${bad ? c.red("令未生效") : ""}`);
-  } else if (e.type === "device") {
-    console.log(`${t} ${pad(e.deviceId, 22)} ${e.online ? c.green("上线") : c.red("掉线")}`);
-  } else if (e.type === "action") {
-    console.log(`${t} ${pad(e.ref, 22)} ${e.action} ${e.ok ? c.green("已回执") : c.red(e.error ?? "失败")}`);
+      e.kind === "relay" ? (e.state ? c.green("通") : c.gray("断")) : c.bold(`${Number(e.state).toFixed(1)} ${e.unit ?? ""}`.trim());
+    console.log(`${t} ${pad(e.ref, 22)} ${pad(e.name, 10)} ${pad(v, 12)}`);
   } else {
-    console.log(`${t} ${c.yellow("告警")} ${e.ref} ${e.message}`);
+    console.log(`${t} ${pad(e.deviceId, 22)} ${e.online ? c.green("上线") : c.red("掉线")}`);
   }
 }
 
 const HELP = `${c.bold("em")}  ElectricMeter 用电管理
 
   em                            总览：设备在线、当前功率、今日用电
-  em entities [--domain=switch] [--device=esp-301]   实体清单
+  em entities [--kind=relay|meter] [--device=esp-301]   实体清单
   em show <ref>                 单个实体
   em on|off|toggle <ref>        远程通断，传 --device=esp-301 就是整房断电
   em power <ref> [--hours=1]    功率波形 + 分时电量

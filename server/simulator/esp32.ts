@@ -1,21 +1,18 @@
 /**
  * ESP32 下位机模拟器：RS485 电能表 + 直流断路器。
- * 按协议只出站——连上 → hello → 每 INTERVAL 秒上报 → 收 action 改继电器 → 回 ack。
+ * 只出站——连上 → post_entities → 每 INTERVAL 毫秒 post_state → 收 post_relay 动继电器 → 回 post_ack。
  *
  *   bun run sim
- *   DEVICE_ID=esp-302 NAME="302 电表箱" INTERVAL=2 FAULT=1 bun run sim
+ *   DEVICE_ID=esp-302 NAME="302 电表箱" INTERVAL=2 bun run sim
  *
- * 采样 500ms 一次：实时曲线要顺滑，而原始样本服务器不落盘，只进时间桶。
- * FAULT=1 注入接触器粘连：通断令下得去，继电器实际不动作，
- * 服务器会发现 requested ≠ state——这就是真实故障的形状。
+ * 采样 500ms 一次，服务器收到就推给观察者，原始样本不落盘只进时间桶。
  */
-import type { DownMsg, EntityDef, Key, UpMsg } from "@em/shared";
+import type { EntityDef, Key, PostRelayMessage, WSMessage } from "@em/shared";
 
 const DEVICE_ID = process.env.DEVICE_ID ?? "esp-301";
 const NAME = process.env.NAME ?? `${DEVICE_ID.replace(/^esp-/, "")} 电表箱`;
 const HOST = process.env.WS ?? "ws://localhost:8080/ws";
-const INTERVAL = Number(process.env.INTERVAL ?? 0.5);
-const FAULT = process.env.FAULT === "1";
+const INTERVAL = Number(process.env.INTERVAL ?? 500);
 
 const CIRCUITS: { key: Key; name: string }[] = [
   { key: "light", name: "照明" },
@@ -25,24 +22,10 @@ const CIRCUITS: { key: Key; name: string }[] = [
 
 const ENTITIES: EntityDef[] = [
   ...CIRCUITS.flatMap<EntityDef>((c) => [
-    { key: c.key, name: c.name, domain: "switch", deviceClass: "outlet" },
-    {
-      key: `${c.key}_power`,
-      name: `${c.name}功率`,
-      domain: "sensor",
-      deviceClass: "power",
-      unit: "W",
-      stateClass: "measurement",
-    },
+    { key: c.key, name: c.name, kind: "relay" },
+    { key: `${c.key}_power`, name: `${c.name}功率`, kind: "meter", unit: "W" },
   ]),
-  {
-    key: "meter",
-    name: "电能表",
-    domain: "sensor",
-    deviceClass: "energy",
-    unit: "kWh",
-    stateClass: "total_increasing",
-  },
+  { key: "meter", name: "电能表", kind: "meter", unit: "kWh" },
 ];
 
 const relay: Record<Key, boolean> = { light: false, socket: true, ac: true };
@@ -63,33 +46,31 @@ function kettle() {
 
 function sample() {
   // 房客随手开关
-  if (Math.random() < 0.02) relay.light = !relay.light;
-  if (Math.random() < 0.015) relay.socket = !relay.socket;
-
+  if (Math.random() < 0.01) relay.light = !relay.light;
+  if (Math.random() < 0.0075) relay.socket = !relay.socket;
   const on = (k: Key) => (relay[k] ? 1 : 0);
-  const power = {
+  return {
     light: on("light") * 55,
     socket: on("socket") * (12 + kettle()),
     ac: on("ac") * 900,
   };
-  return power;
 }
 
 let ws: WebSocket | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let backoff = 1000;
 
-const send = (m: UpMsg) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
+const send = (m: WSMessage) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
+const now = () => Math.floor(Date.now() / 1000);
 
 function tick() {
-  const ts = Math.floor(Date.now() / 1000);
+  const ts = now();
   const power = sample();
   // 电能表按功率积分累计，重启不归零
-  meter += (lastTick ? ((power.light + power.socket + power.ac) * (ts - lastTick)) / 3.6e6 : 0);
+  if (lastTick) meter += ((power.light + power.socket + power.ac) * (ts - lastTick)) / 3.6e6;
   lastTick = ts;
-
   send({
-    type: "state",
+    type: "post_state",
     ts,
     states: [
       ...CIRCUITS.map((c) => ({ key: c.key, state: relay[c.key] })),
@@ -101,12 +82,14 @@ function tick() {
   });
 }
 
-function onDown(m: DownMsg) {
-  if (m.type !== "action") return;
-  if (!FAULT) {
-    relay[m.key] = m.action === "turn_on" ? true : m.action === "turn_off" ? false : !relay[m.key];
+function onDown(m: WSMessage) {
+  if (m.type === "post_relay") {
+    const { key, action } = m as PostRelayMessage;
+    relay[key] = action === "turn_on" ? true : action === "turn_off" ? false : !relay[key];
+    send({ type: "post_ack", ts: now(), ok: true });
+  } else if (m.type === "ping") {
+    send({ type: "ping", ts: now() });
   }
-  send({ type: "ack", ts: Math.floor(Date.now() / 1000), callId: m.callId, ok: true });
 }
 
 function connect() {
@@ -114,18 +97,12 @@ function connect() {
   ws.onopen = () => {
     backoff = 1000;
     lastTick = 0;
-    send({
-      type: "hello",
-      deviceId: DEVICE_ID,
-      name: NAME,
-      model: "esp32-relay-3",
-      fwVersion: "1.0.0",
-      entities: ENTITIES,
-    });
-    if (!timer) timer = setInterval(tick, INTERVAL * 1000);
+    send({ type: "post_entities", ts: now(), name: NAME, model: "esp32-relay-3", fwVersion: "1.0.0", entities: ENTITIES });
+    if (!timer) timer = setInterval(tick, INTERVAL);
+    setInterval(() => send({ type: "ping", ts: now() }), 30_000);
     console.log(`✅ ${DEVICE_ID} 已接入 ${HOST}`);
   };
-  ws.onmessage = (e) => onDown(JSON.parse(String(e.data)) as DownMsg);
+  ws.onmessage = (e) => onDown(JSON.parse(String(e.data)) as WSMessage);
   ws.onclose = () => {
     if (timer) clearInterval(timer);
     timer = null;
