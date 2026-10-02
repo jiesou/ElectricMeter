@@ -1,55 +1,56 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type { Action, Target } from "@em/shared";
-import { historyOf } from "../core/db.ts";
+import type { Target } from "@em/shared";
+import { db } from "../core/db.ts";
 import { command, deviceTotals, getEntity, listEntities, resolve, waitAck, watch } from "../core/hub.ts";
-import { midnight, series } from "../core/stats.ts";
+import { series } from "../core/stats.ts";
 import { now } from "../core/util.ts";
 
 export const api = new Hono();
 
-const ACTIONS: Action[] = ["turn_on", "turn_off", "toggle"];
-
 api.get("/health", (c) => c.json({ status: "ok", ts: now() }));
 
-/** 总览：在线状态 + 当前功率 + 今日用电 */
-api.get("/devices", (c) => c.json(deviceTotals(midnight())));
+/** 总览：在线状态 + 当前功率 + 电量 */
+api.get("/devices", (c) => c.json(deviceTotals()));
 
+/** 不给 device 就是所有设备的实体 */
 api.get("/entities", (c) => {
-  const q = c.req.query();
-  return c.json(listEntities().filter((e) => (!q.kind || e.kind === q.kind) && (!q.device || e.deviceId === q.device)));
+  const { device } = c.req.query();
+  return c.json(device ? listEntities().filter((e) => e.deviceId === device) : listEntities());
 });
 
-api.get("/entities/:ref", (c) => {
-  const e = getEntity(c.req.param("ref"));
-  return e ? c.json(e) : c.json({ error: "未知实体" }, 404);
+api.get("/entities/:deviceId/:id", (c) => {
+  const { deviceId, id } = c.req.param();
+  const e = getEntity(deviceId, id);
+  return e ? c.json(e) : c.json({ error: `未知实体: ${deviceId}/${id}` }, 404);
 });
 
-api.get("/history/:ref", (c) => {
-  const ref = c.req.param("ref");
+api.get("/statistics/:deviceId/:id", (c) => {
+  const { deviceId, id } = c.req.param();
   const to = Number(c.req.query("to") ?? now());
   const from = Number(c.req.query("from") ?? to - 86400);
-  const [deviceId, key] = ref.split(":");
-  return c.json({ ref, from, to, states: historyOf(deviceId, key, from, to) });
+  return c.json(series(deviceId, id, from, to));
 });
 
-api.get("/statistics/:ref", (c) => {
-  const ref = c.req.param("ref");
-  if (!getEntity(ref)) return c.json({ error: `未知实体: ${ref}` }, 404);
+api.get("/history/:deviceId/:id", (c) => {
+  const { deviceId, id } = c.req.param();
   const to = Number(c.req.query("to") ?? now());
   const from = Number(c.req.query("from") ?? to - 86400);
-  return c.json(series(ref, from, to));
+  return c.json({
+    states: db
+      .query<{ ts: number; state: string }, [string, string, number, number]>(
+        "SELECT ts, state FROM state WHERE device_id = ? AND id = ? AND ts >= ? AND ts < ? ORDER BY ts",
+      )
+      .all(deviceId, id, from, to),
+  });
 });
 
-/** 动作入口：POST /api/actions/turn_off { "device": "esp-301" } 就是整房断电 */
-api.post("/actions/:action", async (c) => {
-  const action = c.req.param("action") as Action;
-  if (!ACTIONS.includes(action)) return c.json({ error: `未知动作: ${action}` }, 404);
-  const targets = resolve((await c.req.json()) as Target);
-  const refs = targets.map((e) => e.ref);
-  const sent = targets.filter((e) => command(e, action)).length;
-  if (!sent) return c.json({ ts: now(), refs, sent, acked: 0 });
-  return c.json({ ts: now(), refs, sent, acked: await waitAck() });
+/** 通断：{ deviceId, id, state }。只给 deviceId 就是整房断电，不给 state 就是取反 */
+api.post("/actions", async (c) => {
+  const target = (await c.req.json().catch(() => ({}))) as Target;
+  const targets = resolve(target);
+  const ids = targets.filter((e) => command(e, target.state ?? !e.state)).map((e) => `${e.deviceId}/${e.id}`);
+  return c.json({ ts: now(), ids, sent: ids.length, acked: ids.length ? await waitAck() : 0 });
 });
 
 /** 观察者只读流，CLI watch 和将来的前端都走它 */
