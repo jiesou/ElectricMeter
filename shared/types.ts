@@ -12,26 +12,31 @@ export interface AliveMessage extends WSMessage {
   type: "pub_alive" | "ack_alive";
 }
 
-/** 连上后发一次：这块板子自己有什么 */
+/**
+ * 心跳节奏和失联判定，双方得一致，所以放在协议里。
+ * TCP 断开能感知到拔网线，但设备死机时连接可能还半开着，只有「心跳 + 超时」能发现。
+ */
+export const ALIVE = 30;
+export const TIMEOUT = Number(process.env.EM_TIMEOUT ?? ALIVE * 2.5);
+
+/**
+ * 板子自己有什么、现在是什么样。连上发一份，之后哪个实体变了就补一份，没提到的保持原样。
+ * 实体的设备侧标识就是 id，没有第二个名字，也没有"类型"字段——
+ * 有 state 就能通断，有 power_w 就是功率读数，有 energy_kwh 就是累计电量。
+ */
 export interface EntitiesMessage extends WSMessage {
   type: "pub_entities";
-  name: string;
+  name?: string;
   model?: string;
   fwVersion?: string;
   entities: EntityDef[];
 }
 
-/** 采样上报，1s 一条 */
-export interface StateMessage extends WSMessage {
-  type: "pub_state";
-  states: { key: string; state: number | boolean }[];
-}
-
-/** 服务器下通断令 */
+/** 服务器下通断令：说清要哪个实体到什么状态，action 由服务器自己算 */
 export interface SwitchMessage extends WSMessage {
   type: "pub_switch";
-  key: string;
-  action: Action;
+  id: string;
+  state: boolean;
 }
 
 /** 设备确认执行完成 */
@@ -41,29 +46,23 @@ export interface SwitchAckMessage extends WSMessage {
 
 // ===== 领域 =====
 
-export type Key = string;
-export type Ref = string;
-export type Action = "turn_on" | "turn_off" | "toggle";
-
-/** relay = 一路可通断的回路；meter = 一只读数 */
-export type Kind = "relay" | "meter";
-
 /**
- * 没有 unit 字段。瞬时功率和累计电量天生就是两个量，设备各发各的：
- *   xxx_power  实时瓦数      xxx_energy 自上电以来的千瓦时数
- * 少一个字符串，下位机的内存和 JSON 拼接都省一份。
+ * state = 开关通断；power_w = 瞬时瓦数；energy_kwh = 自上电以来的千瓦时数。
+ * 除了 id 都可以不发：第一次出现时给 name，之后只报变了的读数。
  */
 export interface EntityDef {
-  key: string;
-  name: string;
-  kind: Kind;
+  id: string;
+  name?: string;
+  state?: number | boolean;
+  power_w?: number;
+  energy_kwh?: number;
 }
 
 export interface Entity extends EntityDef {
-  ref: Ref; // deviceId:key
+  name: string;
   deviceId: string;
-  /** relay 是 boolean，meter 是 number */
-  state: number | boolean;
+  /** 开关的通断状态；功率表没有这个字段，它的读数在 power_w */
+  state?: number | boolean;
   ts: number;
 }
 
@@ -72,7 +71,6 @@ export interface Device {
   name: string;
   model?: string;
   fwVersion?: string;
-  lastSeen: number;
   online: boolean;
 }
 
@@ -81,25 +79,26 @@ export interface StatPoint {
   mean: number; // 时间加权均值，不是 AVG()
   min: number;
   max: number;
-  /** 功率读数：积分出的瓦秒，÷3.6e6 得 kWh。累计电量读数：桶末读数，查询时做首尾差 */
+  /** 功率积分出的瓦秒，÷3.6e6 得 kWh */
   sum: number;
 }
 
 export interface StatSeries {
-  ref: Ref;
+  id: string;
   bucket: number;
   from: number;
   to: number;
   points: StatPoint[];
 }
 
-/** 动作目标，二选一。device 就是整房断电 */
+/** 动作目标：一个实体，或一整台设备（整房断电）。不给 state 就是取反 */
 export interface Target {
-  entity?: Ref;
-  device?: string;
+  deviceId?: string;
+  id?: string;
+  state?: boolean;
 }
 
 /** 观察者（SSE）收到的事件 */
 export type Event =
-  | { type: "state"; ts: number; ref: Ref; kind: Kind; name: string; state: number | boolean }
+  | { type: "state"; ts: number; deviceId: string; id: string; name: string; state: number | boolean }
   | { type: "device"; ts: number; deviceId: string; online: boolean };
