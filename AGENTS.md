@@ -29,23 +29,34 @@
 **采集 → 计量 → 统计 → 通断**，全链路闭环，硬件没到货先用模拟器顶替
 
 - **shared/**
-  - `types.ts`
+  - `types.ts` —— 实体模型。实体只由 `deviceId` + `id` 两个字段定位，**没有 `ref`、没有 `kind`、没有 `action`**
+    三种概念：实体是哪种，看它有什么字段——有 `state` 是开关，有 `power_w` 是功率读数，
+    有 `energy_kwh` 是累计电量。取值也自描述：`state` / `power_w` / `energy_kwh`，不带单位表和类型表
+  - 上行只有 `pub_entities` 一种消息：连上发一份完整声明（带 `name`），之后哪个实体变了就补一份，
+    **没提到的保持原样**。所以 `name` 也只在第一次给
+  - `ALIVE` / `TIMEOUT` —— 心跳节奏与失联判定，服务器和板子得一致，所以放在协议里
 - **server/**
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
-  - `core/db.ts` —— 三张表（`device` / `state` / `statistics`）建表与手写查询
-  - `core/hub.ts` —— 在线连接表 + 内存实体注册表 + `WSMessageHandler` 数组（谁关心谁注册）
-  - `core/stats.ts` —— 5 秒时间桶，时间加权均值与功率积分
+  - `core/db.ts` —— SQLite 连接与三张表建表；查询 SQL 写在实际使用它的模块
+  - `core/hub.ts` —— 在线连接表 + 内存实体注册表（deviceId → id → 实体）+ `WSMessageHandler` 数组（谁关心谁注册）。
+    实体表跟着设备走、不跟着连接走：掉线时实体照留，重连后接着更新
+  - `core/hub.ts` 的失联判定 —— `lastSeen` 只在内存里、只服务超时判定，不落库也不对外暴露。
+    板子心跳 30s 一次（`ALIVE`），超过 `TIMEOUT`（默认 75s，`EM_TIMEOUT` 可覆盖）没动静就当掉线主动断开。
+    TCP 断开能感知到拔网线，设备死机时连接可能还半开着，只有「心跳 + 超时」能发现
+  - `core/stats.ts` —— 5 秒时间桶，时间加权均值与功率积分。只做功率
   - `routes/api.ts` —— REST + SSE
-  - `simulator/esp32.ts` —— 下位机模拟器，1000ms 一采：三路（照明 / 插座 / 空调），每路 relay + `_power` + `_energy`
-    三个实体，加一个 `total_energy` 总表；电量在板上累加，电水壶占空比，断路器真实合闸分闸，应用层心跳 30s 一次
+  - `simulator/esp32.ts` —— 下位机模拟器。一个回路两个实体（`light` 开关 / `light-meter` 功率表），
+    1000ms 一采、只上报变了的实体；电量在板上累加并随功率一起报，服务器拿它当读数、
+    两次读数之间补功率积分；电水壶占空比，断路器真实合闸分闸，应用层心跳 30s 一次
+  - 电量 ＝ 板子报的读数 ＋ 它之后这段时间的功率积分。设备离线时靠最后功率外推，没有总表
 - **cli/**（`em`，运行期零依赖）
-  默认总览（设备在线 / 当前功率 / 今日用电）/ 实体清单 / 实体详情 / 远程通断（`--device=` 整房）/
-  功率波形 + 分时电量 / 开关时间线 / 实时事件流，全局 `--json` 输出原始 JSON
+  实体引用写作 `esp-301/light`。默认总览（设备在线 / 当前功率 / 电量）/ 实体清单 / 实体详情 /
+  远程通断（`--device=` 整房）/ 功率波形 + 分时电量 / 开关时间线 / 实时事件流，全局 `--json` 输出原始 JSON
 - **REST**
-  `GET /api/health`、`GET /api/devices`（带 power / energy 的总览）、`GET /api/entities?kind=&device=`、
-  `GET /api/entities/:ref`、`GET /api/history/:ref`、`GET /api/statistics/:ref?from=&to=`、
-  `POST /api/actions/{turn_on,turn_off,toggle}`（target 为 `entity` 或 `device`）
-- **SSE** `GET /api/events` —— 事件自带 `kind` 与 `name`，观察者不用回查就能渲染
+  `GET /api/health`、`GET /api/devices`（带 power / energy 的总览）、`GET /api/entities?device=`、
+  `GET /api/entities/:deviceId/:id`、`GET /api/history/:deviceId/:id`、`GET /api/statistics/:deviceId/:id?from=&to=`、
+  `POST /api/actions`（`{ deviceId, id?, state? }`，只给 deviceId 就是整房断电，不给 state 就是取反）
+- **SSE** `GET /api/events` —— 事件自带 `deviceId` / `id` / `name`，观察者不用回查就能渲染
 - **测试** `bun test`
 - **端口** server `8080`，`PORT` / `EM_HOST` / `WS` 可覆盖
 
