@@ -1,34 +1,53 @@
 import type { WSContext } from "hono/ws";
 import type {
-  Action,
   Device,
   EntitiesMessage,
   Entity,
   Event,
-  Ref,
-  StateMessage,
-  SwitchMessage,
   Target,
   WSMessage,
   WSMessageHandler,
 } from "@em/shared";
-import { appendState, device as deviceTable, lastStateOf } from "./db.ts";
-import { energyOf, record } from "./stats.ts";
+import { TIMEOUT } from "@em/shared";
+import { db } from "./db.ts";
+import { record } from "./stats.ts";
 import { now } from "./util.ts";
 
-type Conn = { device: Device; ws: WSContext };
+type DeviceRow = { id: string; name: string; model: string | null; fw_version: string | null };
+/** lastSeen 只服务失联判定，不落库也不对外暴露 */
+type Conn = { device: Device; ws: WSContext; lastSeen: number };
 
 const conns = new Map<string, Conn>(); // deviceId → 连接，一个连接一个身份
-const entities = new Map<Ref, Entity>(); // 实体注册表只在内存
+const entities = new Map<string, Map<string, Entity>>(); // deviceId → id → 实体，只在内存
+/** 板子报来的电量读数；实时电量＝这个读数＋它之后这段时间的功率积分 */
+const energyBase = new Map<string, { kwh: number; ts: number }>();
 const observers = new Set<(e: Event) => void>();
 const handlers: Record<string, WSMessageHandler> = {}; // 谁关心谁注册
 const ackWaiters = new Set<() => void>();
 let inflight = 0;
 
-export const listDevices = () => [...conns.values()].map((c) => c.device);
-export const listEntities = () => [...entities.values()];
-export const getEntity = (ref: Ref) => entities.get(ref);
+/** 库里的每一台设备都在列，在线与否看当前有没有连接 */
+export const listDevices = () =>
+  db
+    .query<DeviceRow, []>("SELECT id, name, model, fw_version FROM device ORDER BY id")
+    .all()
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      model: d.model ?? undefined,
+      fwVersion: d.fw_version ?? undefined,
+      online: conns.has(d.id),
+    }));
+export const listEntities = () => [...entities.values()].flatMap((m) => [...m.values()]);
+export const getEntity = (deviceId: string, id: string) => entities.get(deviceId)?.get(id);
 export const isOnline = (deviceId: string) => conns.has(deviceId);
+
+/** 累计电量：板子最近一次报的读数 + 它之后这段的功率积分。同一时刻的量不会算两遍 */
+export function energyKwh(e: Entity, at: number): number {
+  const base = energyBase.get(`${e.deviceId}/${e.id}`);
+  const wsec = base ? Math.max(0, (e.power_w ?? 0) * (at - base.ts)) : 0;
+  return (e.energy_kwh ?? 0) + wsec / 3.6e6;
+}
 
 export function watch(fn: (e: Event) => void) {
   observers.add(fn);
@@ -41,64 +60,65 @@ const emit = (e: Event) => {
 const send = (deviceId: string, m: WSMessage) => conns.get(deviceId)?.ws.send(JSON.stringify(m));
 
 /**
- * key 以 _energy 结尾的是电表累计读数：时均没意义，sum 直接存桶末读数，查询时做首尾差。
- * _power 结尾的是实时瓦数：按时间加权积分，sum 就是这段的瓦秒。
+ * 板子自己有什么。连上发一份（带 name），之后哪个实体变了就补一份，没提到的保持原样。
+ * 所以实体表跟着设备走，不跟着连接走：掉线时实体照留，重连后接着更新。
  */
-const isTotal = (key: string) => key.endsWith("_energy");
-
-/** 连上后发一次：这块板子自己有什么 */
 handlers.pub_entities = (device, _reply, m) => {
-  const ts = now();
   const { name, model, fwVersion, entities: defs } = m as EntitiesMessage;
-  Object.assign(device, { name, model, fwVersion, lastSeen: ts });
-  deviceTable.put(device);
-
-  // 设备是它有什么的权威来源：不再上报的实体直接摘掉
-  const live = new Set(defs.map((e) => e.key));
-  for (const [ref, e] of entities) if (e.deviceId === device.id && !live.has(e.key)) entities.delete(ref);
+  const ts = m.ts || now();
+  // 自我介绍只在连上时发一遍，之后是增量报文，没带的字段不能当成空的
+  if (name) device.name = name;
+  if (model) device.model = model;
+  if (fwVersion) device.fwVersion = fwVersion;
+  db.run(
+    "UPDATE device SET name = ?, model = COALESCE(?, model), fw_version = COALESCE(?, fw_version) WHERE id = ?",
+    [device.name, model ?? null, fwVersion ?? null, device.id],
+  );
+  const table = entities.get(device.id) ?? new Map<string, Entity>();
 
   for (const def of defs) {
-    const ref = `${device.id}:${def.key}`;
-    const old = entities.get(ref);
-    // 开关的初值从历史里捡回来，服务器重启后不至于伪造一段假跳变
-    const last = def.kind === "relay" ? lastStateOf(device.id, def.key) : undefined;
-    entities.set(ref, {
-      ...def,
-      ref,
+    const { id, name: entityName, ...values } = def;
+    // 新实体：服务器重启就靠 states 表把开关初值捡回来，免得伪造一段假跳变
+    const last = db
+      .query<{ state: string }, [string, string]>(
+        "SELECT state FROM state WHERE device_id = ? AND id = ? ORDER BY ts DESC LIMIT 1",
+      )
+      .get(device.id, id);
+    const e = table.get(id) ?? {
+      id,
+      name: entityName ?? id,
       deviceId: device.id,
-      state: old?.state ?? (last ? last.state === "true" : def.kind === "relay" ? false : 0),
-      ts: old?.ts ?? ts,
-    });
-  }
-  emit({ type: "device", ts, deviceId: device.id, online: true });
-};
-
-/** 1000ms 一条 */
-handlers.pub_state = (device, _reply, m) => {
-  const ts = (m as StateMessage).ts || now();
-  for (const u of m.states as StateMessage["states"]) {
-    const ref = `${device.id}:${u.key}`;
-    const e = entities.get(ref);
-    if (!e) continue;
-    if (e.kind === "relay") {
-      if (e.state === u.state) continue; // 开关是事件，没变就不记
-      e.state = u.state;
+      state: values.power_w === undefined ? (last ? last.state === "true" : false) : undefined,
+      ts,
+    };
+    if (entityName) e.name = entityName;
+    // 值只是「现在是多少」；电量另说，见 energyKwh
+    if (values.state !== undefined && e.state !== values.state) {
+      e.state = values.state;
       e.ts = ts;
-      appendState(device.id, e.key, ts, u.state);
-      emit({ type: "state", ts, ref, kind: e.kind, name: e.name, state: u.state });
-    } else {
-      // 读数每个采样都要记：时间积分靠「上一段持续了多久」推进
-      const v = Number(u.state);
-      record(ref, v, ts, isTotal(e.key));
-      if (e.state !== v) {
-        e.state = v;
-        e.ts = ts;
-        emit({ type: "state", ts, ref, kind: e.kind, name: e.name, state: v });
-      }
+      db.run("INSERT OR REPLACE INTO state (device_id, id, ts, state) VALUES (?, ?, ?, ?)", [
+        device.id,
+        id,
+        ts,
+        String(values.state),
+      ]);
+      emit({ type: "state", ts, deviceId: device.id, id, name: e.name, state: values.state });
     }
+    if (values.energy_kwh !== undefined) {
+      e.energy_kwh = values.energy_kwh;
+      energyBase.set(`${device.id}/${id}`, { kwh: values.energy_kwh, ts });
+    }
+    if (values.power_w !== undefined) {
+      const changed = e.power_w !== values.power_w;
+      e.power_w = values.power_w;
+      e.ts = ts;
+      record(device.id, id, values.power_w, ts); // 读数每个采样都记：时间积分靠「上一段持续了多久」推进
+      // 但只有变了才对外发事件，否则观察者每秒被刷一遍
+      if (changed) emit({ type: "state", ts, deviceId: device.id, id, name: e.name, state: values.power_w });
+    }
+    table.set(id, e);
   }
-  device.lastSeen = ts;
-  deviceTable.touch(device.id, ts);
+  entities.set(device.id, table);
 };
 
 /** 设备确认动完了。回执不做关联，收到几个算几个 */
@@ -110,35 +130,51 @@ handlers.ack_switch = () => {
 handlers.pub_alive = (_device, reply) => reply({ type: "ack_alive", ts: now() });
 
 export function connect(deviceId: string, ws: WSContext) {
+  db.run("INSERT OR IGNORE INTO device (id, name) VALUES (?, ?)", [deviceId, deviceId]);
+  const saved = db
+    .query<DeviceRow, [string]>("SELECT id, name, model, fw_version FROM device WHERE id = ?")
+    .get(deviceId)!;
   const device: Device = {
-    ...(deviceTable.get(deviceId) ?? { id: deviceId, name: deviceId }),
+    id: saved.id,
+    name: saved.name,
+    model: saved.model ?? undefined,
+    fwVersion: saved.fw_version ?? undefined,
     online: true,
-    lastSeen: now(),
   };
-  deviceTable.put(device);
-  conns.set(deviceId, { device, ws });
+  conns.set(deviceId, { device, ws, lastSeen: now() });
+  emit({ type: "device", ts: now(), deviceId, online: true });
 }
 
-export function disconnect(deviceId: string, ws: WSContext) {
-  const c = conns.get(deviceId);
-  if (!c || c.ws !== ws) return;
-  conns.delete(deviceId);
-  Object.assign(c.device, { online: false, lastSeen: now() });
-  deviceTable.put(c.device);
+export function disconnect(deviceId: string) {
+  if (!conns.delete(deviceId)) return;
   emit({ type: "device", ts: now(), deviceId, online: false });
 }
 
-export function handleMessage(deviceId: string, raw: string) {
-  const c = conns.get(deviceId);
-  const m = JSON.parse(raw) as WSMessage;
-  handlers[m.type]?.(c!.device, (r) => send(deviceId, r), m);
+/**
+ * 失联判定：太久没收到任何消息就当成掉线。设备死机、网线松了，TCP 可能一直半开着，
+ * 只有这里能发现。断连后板子会重连，重连时重新声明自己有什么。
+ */
+export function checkTimeout(at = now()) {
+  for (const [deviceId, c] of conns) {
+    if (at - c.lastSeen <= TIMEOUT) continue;
+    conns.delete(deviceId);
+    emit({ type: "device", ts: at, deviceId, online: false });
+    c.ws.close();
+  }
 }
 
-/** 下一个动作。设备离线、或者不是可开关的实体，就返回 false */
-export function command(e: Entity, action: Action): boolean {
-  if (!conns.has(e.deviceId) || e.kind !== "relay") return false;
+export function handleMessage(deviceId: string, raw: string) {
+  const c = conns.get(deviceId)!;
+  c.lastSeen = now(); // 收到任何一条都算还活着，板子心跳 30s 一次保底
+  const m = JSON.parse(raw) as WSMessage;
+  handlers[m.type]?.(c.device, (r) => send(deviceId, r), m);
+}
+
+/** 下一个动作：说清要到什么状态，取反在这里算完。设备离线、或者不是可开关的实体，就返回 false */
+export function command(e: Entity, state: boolean): boolean {
+  if (!conns.has(e.deviceId) || e.state === undefined) return false;
   inflight++;
-  send(e.deviceId, { type: "pub_switch", ts: now(), key: e.key, action });
+  send(e.deviceId, { type: "pub_switch", ts: now(), id: e.id, state });
   return true;
 }
 
@@ -161,27 +197,25 @@ export function waitAck(timeout = 5000): Promise<number> {
   });
 }
 
-/** 动作目标：单个实体，或整台设备（整房断电） */
+/** 可通断的实体：一个 id 就是一个，或者整台设备（整房断电） */
 export function resolve(target: Target): Entity[] {
-  if (target.entity) {
-    const e = getEntity(target.entity);
-    return e?.kind === "relay" ? [e] : [];
+  if (target.id) {
+    const e = getEntity(target.deviceId ?? "", target.id);
+    return e && e.state !== undefined ? [e] : [];
   }
-  return target.device ? listEntities().filter((e) => e.deviceId === target.device && e.kind === "relay") : [];
+  if (!target.deviceId) return [];
+  return [...(entities.get(target.deviceId)?.values() ?? [])].filter((e) => e.state !== undefined);
 }
 
-/** 总览：在线状态 + 当前功率 + 时段用电 */
-export function deviceTotals(from: number) {
+/** 总览：在线状态 + 当前功率 + 电量 */
+export function deviceTotals() {
+  const at = now();
   return listDevices().map((d) => {
-    const meters = listEntities().filter((e) => e.deviceId === d.id && e.key.endsWith("_power"));
+    const meters = [...(entities.get(d.id)?.values() ?? [])].filter((e) => e.power_w !== undefined);
     return {
       ...d,
-      power: meters.reduce((s, e) => s + Number(e.state), 0),
-      energy: energyOf(
-        meters.map((e) => e.ref),
-        from,
-        now(),
-      ),
+      power: meters.reduce((s, e) => s + (e.power_w ?? 0), 0),
+      energy: meters.reduce((s, e) => s + energyKwh(e, at), 0),
     };
   });
 }

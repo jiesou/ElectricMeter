@@ -21,8 +21,8 @@ app.get(
       onMessage(e) {
         handleMessage(deviceId, String(e.data));
       },
-      onClose(_e, ws) {
-        disconnect(deviceId, ws);
+      onClose() {
+        disconnect(deviceId);
       },
     };
   }),
