@@ -2,11 +2,12 @@ import type { WSContext } from "hono/ws";
 import type {
   Action,
   Device,
+  EntitiesMessage,
   Entity,
   Event,
-  PostEntitiesMessage,
-  PostStateMessage,
   Ref,
+  StateMessage,
+  SwitchMessage,
   Target,
   WSMessage,
   WSMessageHandler,
@@ -46,9 +47,9 @@ const send = (deviceId: string, m: WSMessage) => conns.get(deviceId)?.ws.send(JS
 const isTotal = (key: string) => key.endsWith("_energy");
 
 /** 连上后发一次：这块板子自己有什么 */
-handlers.post_entities = (device, _reply, m) => {
+handlers.pub_entities = (device, _reply, m) => {
   const ts = now();
-  const { name, model, fwVersion, entities: defs } = m as PostEntitiesMessage;
+  const { name, model, fwVersion, entities: defs } = m as EntitiesMessage;
   Object.assign(device, { name, model, fwVersion, lastSeen: ts });
   deviceTable.put(device);
 
@@ -72,10 +73,10 @@ handlers.post_entities = (device, _reply, m) => {
   emit({ type: "device", ts, deviceId: device.id, online: true });
 };
 
-/** 500ms 一条 */
-handlers.post_state = (device, _reply, m) => {
-  const ts = (m as PostStateMessage).ts || now();
-  for (const u of m.states as PostStateMessage["states"]) {
+/** 1000ms 一条 */
+handlers.pub_state = (device, _reply, m) => {
+  const ts = (m as StateMessage).ts || now();
+  for (const u of m.states as StateMessage["states"]) {
     const ref = `${device.id}:${u.key}`;
     const e = entities.get(ref);
     if (!e) continue;
@@ -100,16 +101,13 @@ handlers.post_state = (device, _reply, m) => {
   deviceTable.touch(device.id, ts);
 };
 
-/** 板子上只管动自己的继电器，服务器不猜它执行了没有 */
-handlers.post_relay = (_device, reply) => reply({ type: "post_ack", ts: now(), ok: true });
-
-/** 回执不做关联，收到几个算几个 */
-handlers.post_ack = () => {
+/** 设备确认动完了。回执不做关联，收到几个算几个 */
+handlers.ack_switch = () => {
   inflight = Math.max(0, inflight - 1);
   for (const w of ackWaiters) w();
 };
 
-handlers.ping = (_device, reply) => reply({ type: "ping", ts: now() });
+handlers.pub_alive = (_device, reply) => reply({ type: "ack_alive", ts: now() });
 
 export function connect(deviceId: string, ws: WSContext) {
   const device: Device = {
@@ -140,7 +138,7 @@ export function handleMessage(deviceId: string, raw: string) {
 export function command(e: Entity, action: Action): boolean {
   if (!conns.has(e.deviceId) || e.kind !== "relay") return false;
   inflight++;
-  send(e.deviceId, { type: "post_relay", ts: now(), key: e.key, action });
+  send(e.deviceId, { type: "pub_switch", ts: now(), key: e.key, action });
   return true;
 }
 

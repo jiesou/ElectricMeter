@@ -1,18 +1,18 @@
 /**
  * ESP32 下位机模拟器：RS485 电能表 + 直流断路器。
- * 只出站——连上 → post_entities → 每 INTERVAL 毫秒 post_state → 收 post_relay 动继电器 → 回 post_ack。
+ * 只出站——连上 → pub_entities → 每 INTERVAL 毫秒 pub_state → 收 pub_switch 动继电器 → 回 ack_switch。
  *
  *   bun run sim
  *   DEVICE_ID=esp-302 NAME="302 电表箱" INTERVAL=2 bun run sim
  *
- * 采样 500ms 一次，服务器收到就推给观察者，原始样本不落盘只进时间桶。
+ * 采样 1000ms 一次，服务器收到就推给观察者，原始样本不落盘只进时间桶。
  */
-import type { EntityDef, Key, PostRelayMessage, WSMessage } from "@em/shared";
+import type { EntityDef, Key, SwitchMessage, WSMessage } from "@em/shared";
 
 const DEVICE_ID = process.env.DEVICE_ID ?? "esp-301";
 const NAME = process.env.NAME ?? `${DEVICE_ID.replace(/^esp-/, "")} 电表箱`;
 const HOST = process.env.WS ?? "ws://localhost:8080/ws";
-const INTERVAL = Number(process.env.INTERVAL ?? 500);
+const INTERVAL = Number(process.env.INTERVAL ?? 1000);
 
 type Circuit = "light" | "socket" | "ac";
 const CIRCUITS: { key: Circuit; name: string }[] = [
@@ -77,7 +77,7 @@ function tick() {
   }
   lastTick = ts;
   send({
-    type: "post_state",
+    type: "pub_state",
     ts,
     states: [
       ...CIRCUITS.map((c) => ({ key: c.key, state: relay[c.key] })),
@@ -89,12 +89,10 @@ function tick() {
 }
 
 function onDown(m: WSMessage) {
-  if (m.type === "post_relay") {
-    const { key, action } = m as PostRelayMessage;
+  if (m.type === "pub_switch") {
+    const { key, action } = m as SwitchMessage;
     relay[key] = action === "turn_on" ? true : action === "turn_off" ? false : !relay[key];
-    send({ type: "post_ack", ts: now(), ok: true });
-  } else if (m.type === "ping") {
-    send({ type: "ping", ts: now() });
+    send({ type: "ack_switch", ts: now() });
   }
 }
 
@@ -103,9 +101,9 @@ function connect() {
   ws.onopen = () => {
     backoff = 1000;
     lastTick = 0;
-    send({ type: "post_entities", ts: now(), name: NAME, model: "esp32-relay-3", fwVersion: "1.0.0", entities: ENTITIES });
+    send({ type: "pub_entities", ts: now(), name: NAME, model: "esp32-relay-3", fwVersion: "1.0.0", entities: ENTITIES });
     if (!timer) timer = setInterval(tick, INTERVAL);
-    setInterval(() => send({ type: "ping", ts: now() }), 30_000);
+    setInterval(() => send({ type: "pub_alive", ts: now() }), 30_000);
     console.log(`✅ ${DEVICE_ID} 已接入 ${HOST}`);
   };
   ws.onmessage = (e) => onDown(JSON.parse(String(e.data)) as WSMessage);

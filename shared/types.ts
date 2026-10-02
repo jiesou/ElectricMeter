@@ -1,55 +1,42 @@
-/**
- * 全部类型，一个文件。东西就那么一些，不再拆 domain / protocol。
- *
- * 协议基座（用户已确认）：任何业务消息都从这四条展开，不要另立消息体系。
- */
 export interface WSMessage {
   type: string;
   ts?: number; // 秒
   [key: string]: unknown;
 }
-/** 谁关心谁注册，不做按角色的 switch 分流 */
 export type WSMessageHandler = (device: Device, send: (m: WSMessage) => void, m: WSMessage) => void;
 
-/* XX PostMessage      客户机->服务器 post新数据 */
-/* XX PostAckMessage   客户机<-服务器 回馈成功失败 */
-/* XX GetMessage       客户机->服务器 get数据 */
-/* XX GetAckMessage    客户机<-服务器 返回数据 */
+// ===== 线上消息 =====
 
-// ===== 业务消息 =====
+/** 心跳，30s 一次 */
+export interface AliveMessage extends WSMessage {
+  type: "pub_alive" | "ack_alive";
+}
 
 /** 连上后发一次：这块板子自己有什么 */
-export interface PostEntitiesMessage extends WSMessage {
-  type: "post_entities";
+export interface EntitiesMessage extends WSMessage {
+  type: "pub_entities";
   name: string;
   model?: string;
   fwVersion?: string;
   entities: EntityDef[];
 }
 
-/** 采样上报，500ms 一条 */
-export interface PostStateMessage extends WSMessage {
-  type: "post_state";
+/** 采样上报，1s 一条 */
+export interface StateMessage extends WSMessage {
+  type: "pub_state";
   states: { key: string; state: number | boolean }[];
 }
 
 /** 服务器下通断令 */
-export interface PostRelayMessage extends WSMessage {
-  type: "post_relay";
+export interface SwitchMessage extends WSMessage {
+  type: "pub_switch";
   key: string;
   action: Action;
 }
 
-/** 回执，不做关联，哪条命令的就不管了 */
-export interface PostAckMessage extends WSMessage {
-  type: "post_ack";
-  ok: boolean;
-  error?: string;
-}
-
-/** 应用层心跳。WS 协议自带的 ping/pong 检测不到半开连接，所以留这个 */
-export interface PingMessage extends WSMessage {
-  type: "ping";
+/** 设备确认执行完成 */
+export interface SwitchAckMessage extends WSMessage {
+  type: "ack_switch";
 }
 
 // ===== 领域 =====

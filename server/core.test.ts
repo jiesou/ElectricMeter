@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import type { WSMessage } from "@em/shared";
-import { rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 
-process.env.DB_PATH = "/tmp/agents/em-test.db";
+process.env.DB_PATH = "/tmp/em-test.db";
 for (const f of ["", "-wal", "-shm"]) rmSync(process.env.DB_PATH + f, { force: true });
 
 const hub = await import("./core/hub.ts");
@@ -32,21 +32,21 @@ function fakeDevice(id: string, defs = DEFS) {
     /** 设备回报一轮状态。obey=false 模拟令下得去但继电器不动作 */
     report(states: { key: string; state: number | boolean }[], ts = t0, obey = true) {
       for (const m of this.received()) {
-        if (m.type !== "post_relay") continue;
+        if (m.type !== "pub_switch") continue;
         if (obey)
           states = states.map((s) =>
             s.key === m.key ? { ...s, state: m.action !== "turn_off" } : s,
           );
-        post("post_ack", { ts, ok: true });
+        post("ack_switch", { ts });
       }
-      post("post_state", { ts, states });
+      post("pub_state", { ts, states });
     },
   };
 }
 
-test("post_entities 登记实体", () => {
+test("pub_entities 登记实体", () => {
   const d = fakeDevice("esp-101");
-  d.post("post_entities", { ts: t0, name: "301 电表箱", model: "esp32-relay-3", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "301 电表箱", model: "esp32-relay-3", entities: DEFS });
   expect(hub.getEntity("esp-101:light")!.name).toBe("照明");
   expect(hub.getEntity("esp-101:light_power")!.kind).toBe("meter");
   expect(hub.isOnline("esp-101")).toBe(true);
@@ -54,16 +54,16 @@ test("post_entities 登记实体", () => {
 
 test("设备不再上报的实体会被摘掉", () => {
   const d = fakeDevice("esp-102", [...DEFS, { key: "ac", name: "空调", kind: "relay" as const }]);
-  d.post("post_entities", { ts: t0, name: "esp-102", entities: [...DEFS, { key: "ac", name: "空调", kind: "relay" }] });
+  d.post("pub_entities", { ts: t0, name: "esp-102", entities: [...DEFS, { key: "ac", name: "空调", kind: "relay" }] });
   expect(hub.getEntity("esp-102:ac")).toBeDefined();
-  d.post("post_entities", { ts: t0, name: "esp-102", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-102", entities: DEFS });
   expect(hub.getEntity("esp-102:ac")).toBeUndefined();
   expect(hub.getEntity("esp-102:light")).toBeDefined();
 });
 
 test("开关只在状态真变了的时候落 states 表", () => {
   const d = fakeDevice("esp-103");
-  d.post("post_entities", { ts: t0, name: "esp-103", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-103", entities: DEFS });
   d.report([{ key: "light", state: true }], t0);
   d.report([{ key: "light", state: true }], t0 + 1); // 没变，不该再记
   d.report([{ key: "light", state: false }], t0 + 2);
@@ -93,7 +93,7 @@ test("功率积分就是电量：瓦秒 ÷ 3.6e6 = kWh", () => {
 
 test("下动作 → 设备回执 → 状态跟着变", async () => {
   const d = fakeDevice("esp-105");
-  d.post("post_entities", { ts: t0, name: "esp-105", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-105", entities: DEFS });
   d.report([{ key: "light", state: true }], t0);
   expect(hub.command(hub.getEntity("esp-105:light")!, "turn_off")).toBe(true);
   d.report([{ key: "light", state: true }], t0 + 5);
@@ -103,7 +103,7 @@ test("下动作 → 设备回执 → 状态跟着变", async () => {
 
 test("令下得去但继电器不动：板子只管回报实际状态", async () => {
   const d = fakeDevice("esp-106");
-  d.post("post_entities", { ts: t0, name: "esp-106", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-106", entities: DEFS });
   d.report([{ key: "light", state: true }], t0);
   hub.command(hub.getEntity("esp-106:light")!, "turn_off");
   d.report([{ key: "light", state: true }], t0 + 5, false);
@@ -113,14 +113,14 @@ test("令下得去但继电器不动：板子只管回报实际状态", async ()
 
 test("整房断电：按 device 展开到所有开关，读数不参与", () => {
   const d = fakeDevice("esp-107");
-  d.post("post_entities", { ts: t0, name: "esp-107", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-107", entities: DEFS });
   expect(hub.resolve({ device: "esp-107" }).map((e) => e.ref)).toEqual(["esp-107:light"]);
   expect(hub.resolve({ device: "esp-999" })).toEqual([]);
 });
 
 test("设备离线时不下令", () => {
   const d = fakeDevice("esp-108");
-  d.post("post_entities", { ts: t0, name: "esp-108", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-108", entities: DEFS });
   const e = hub.getEntity("esp-108:light")!;
   hub.disconnect("esp-108", d.ws);
   expect(hub.command(e, "turn_on")).toBe(false);
@@ -128,16 +128,16 @@ test("设备离线时不下令", () => {
 
 test("服务器重启后靠 states 表把开关初值捡回来", () => {
   const d = fakeDevice("esp-111");
-  d.post("post_entities", { ts: t0, name: "esp-111", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-111", entities: DEFS });
   expect(lastStateOf("esp-111", "light") ?? undefined).toBeUndefined();
   d.report([{ key: "light", state: true }], t0);
   expect(lastStateOf("esp-111", "light")!.state).toBe("true");
 });
 
-test("ping 有来有回", () => {
+test("心跳有来有回：pub_alive / ack_alive", () => {
   const d = fakeDevice("esp-112");
-  d.post("post_entities", { ts: t0, name: "esp-112", entities: DEFS });
+  d.post("pub_entities", { ts: t0, name: "esp-112", entities: DEFS });
   d.received();
-  d.post("ping", { ts: t0 });
-  expect(d.received()).toEqual([{ type: "ping", ts: expect.any(Number) }]);
+  d.post("pub_alive", { ts: t0 });
+  expect(d.received()).toEqual([{ type: "ack_alive", ts: expect.any(Number) }]);
 });
