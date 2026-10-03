@@ -16,5 +16,5 @@ setInterval(() => checkTimeout(), 5_000);
 purge();
 
 console.log(`server   http://localhost:${port}`);
-console.log(`device   ws://localhost:${port}/ws?deviceId=esp-301`);
+console.log(`device   ws://localhost:${port}/ws?device_id=esp-301`);
 console.log(`ts       ${now()}`);

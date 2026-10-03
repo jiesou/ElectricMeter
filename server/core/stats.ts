@@ -15,7 +15,7 @@ const BUCKET = 5;
 const KEEP = 30 * 86400;
 
 type Acc = {
-  deviceId: string;
+  device_id: string;
   id: string;
   start: number;
   wsum: number; // Σ 值×秒
@@ -32,24 +32,24 @@ const open = new Map<string, Acc>();
 /** 上一次采样，用来把 [上次, 本次] 这段时间按上次的值计权 */
 const prev = new Map<string, { v: number; ts: number }>();
 
-function accOf(deviceId: string, id: string, ts: number): Acc {
+function accOf(device_id: string, id: string, ts: number): Acc {
   const start = Math.floor(ts / BUCKET) * BUCKET;
-  const k = `${deviceId}/${id}@${start}`;
+  const k = `${device_id}/${id}@${start}`;
   let a = open.get(k);
   if (!a) {
     open.set(
       k,
-      (a = { deviceId, id, start, wsum: 0, wsec: 0, min: Infinity, max: -Infinity, sum: 0, n: 0 }),
+      (a = { device_id, id, start, wsum: 0, wsec: 0, min: Infinity, max: -Infinity, sum: 0, n: 0 }),
     );
   }
   return a;
 }
 
-export function record(deviceId: string, id: string, v: number, ts: number) {
-  const k = `${deviceId}/${id}`;
+export function record(device_id: string, id: string, v: number, ts: number) {
+  const k = `${device_id}/${id}`;
   const last = prev.get(k);
   prev.set(k, { v, ts });
-  const a = accOf(deviceId, id, ts);
+  const a = accOf(device_id, id, ts);
   a.min = Math.min(a.min, v);
   a.max = Math.max(a.max, v);
   a.n++;
@@ -57,7 +57,7 @@ export function record(deviceId: string, id: string, v: number, ts: number) {
   if (!last || ts <= last.ts) return;
   for (let t = last.ts; t < ts; ) {
     const end = Math.min(Math.floor(t / BUCKET) * BUCKET + BUCKET, ts);
-    const seg = accOf(deviceId, id, t);
+    const seg = accOf(device_id, id, t);
     seg.wsum += last.v * (end - t);
     seg.wsec += end - t;
     seg.sum += last.v * (end - t);
@@ -74,14 +74,14 @@ export function flush(at = now()) {
     db.run(
       `INSERT OR REPLACE INTO statistics (device_id, id, bucket_start, mean, min, max, sum)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [a.deviceId, a.id, a.start, a.wsum / a.wsec, a.min, a.max, a.sum],
+      [a.device_id, a.id, a.start, a.wsum / a.wsec, a.min, a.max, a.sum],
     );
   }
 }
 
 export const purge = (at = now()) => db.run("DELETE FROM statistics WHERE bucket_start < ?", [at - KEEP]).changes;
 
-export function series(deviceId: string, id: string, from: number, to: number): StatSeries {
+export function series(device_id: string, id: string, from: number, to: number): StatSeries {
   return {
     id,
     bucket: BUCKET,
@@ -93,7 +93,7 @@ export function series(deviceId: string, id: string, from: number, to: number): 
          WHERE device_id = ? AND id = ? AND bucket_start >= ? AND bucket_start < ?
          ORDER BY bucket_start`,
       )
-      .all(deviceId, id, from, to)
+      .all(device_id, id, from, to)
       .map((r) => ({
         ts: r.bucket_start,
         mean: r.mean,

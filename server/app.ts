@@ -12,17 +12,17 @@ app.route("/api", api);
 app.get(
   "/ws",
   upgradeWebSocket((c) => {
-    const deviceId = c.req.query("deviceId");
-    if (!deviceId) throw new Error("缺少 deviceId");
+    const device_id = c.req.query("device_id");
+    if (!device_id) throw new Error("缺少 device_id");
     return {
       onOpen(_e, ws) {
-        connect(deviceId, ws);
+        connect(device_id, ws);
       },
       onMessage(e) {
-        handleMessage(deviceId, String(e.data));
+        handleMessage(device_id, String(e.data));
       },
       onClose() {
-        disconnect(deviceId);
+        disconnect(device_id);
       },
     };
   }),

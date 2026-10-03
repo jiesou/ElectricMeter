@@ -8,7 +8,7 @@
  *
  * 采样 1000ms 一次，服务器收到就推给观察者，原始样本不落盘只进时间桶。
  */
-import type { EntityDef, SwitchMessage, WSMessage } from "@em/shared";
+import type { Entity, SwitchMessage, WSMessage } from "@em/shared";
 import { ALIVE } from "@em/shared";
 
 const DEVICE_ID = process.env.DEVICE_ID ?? "esp-301";
@@ -56,7 +56,7 @@ let ws: WebSocket | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let backoff = 1000;
 /** 上次报出去的实体快照，没变的字段就不重复发 */
-const snap = new Map<string, EntityDef>();
+const snap = new Map<string, Entity>();
 
 const send = (m: WSMessage) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
 const now = () => Math.floor(Date.now() / 1000);
@@ -70,17 +70,17 @@ function tick() {
   for (const c of CIRCUITS) energy[c.id] += (power[c.id] * dt) / 3.6e6;
 
   // 秒级时间戳只有 1 秒分辨率，取到小数点后两位够表示功率的瓦级变化了
-  const fresh: EntityDef[] = CIRCUITS.flatMap<EntityDef>((c) => [
+  const fresh: Entity[] = CIRCUITS.flatMap<Entity>((c) => [
     { id: c.id, state: relay[c.id] },
     { id: id(c.id, "meter"), power_w: power[c.id], energy_kwh: Number(energy[c.id].toFixed(2)) },
   ]);
-  const changed: EntityDef[] = [];
+  const changed: Entity[] = [];
   for (const e of fresh) {
     const old = snap.get(e.id);
     const diff: Record<string, unknown> = { id: e.id };
-    for (const [k, v] of Object.entries(e)) if (k !== "id" && old?.[k as keyof EntityDef] !== v) diff[k] = v;
+    for (const [k, v] of Object.entries(e)) if (k !== "id" && old?.[k as keyof Entity] !== v) diff[k] = v;
     if (Object.keys(diff).length > 1) {
-      changed.push(diff as unknown as EntityDef); // 只带变了的字段，id 必在
+      changed.push(diff as unknown as Entity); // 只带变了的字段，id 必在
       snap.set(e.id, e);
     }
   }
@@ -96,7 +96,7 @@ function onDown(m: WSMessage) {
 }
 
 function connect() {
-  ws = new WebSocket(`${HOST}?deviceId=${encodeURIComponent(DEVICE_ID)}`);
+  ws = new WebSocket(`${HOST}?device_id=${encodeURIComponent(DEVICE_ID)}`);
   ws.onopen = () => {
     backoff = 1000;
     lastTick = 0;
@@ -108,7 +108,7 @@ function connect() {
       name: NAME,
       model: "esp32-relay-3",
       fwVersion: "1.0.0",
-      entities: CIRCUITS.flatMap<EntityDef>((c) => [
+      entities: CIRCUITS.flatMap<Entity>((c) => [
         { id: c.id, name: c.name, state: relay[c.id] },
         { id: id(c.id, "meter"), name: `${c.name}功率`, power_w: power[c.id], energy_kwh: energy[c.id] },
       ]),

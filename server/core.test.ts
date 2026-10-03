@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { EntityDef, WSMessage } from "@em/shared";
+import type { Entity, WSMessage } from "@em/shared";
 import { TIMEOUT } from "@em/shared";
 process.env.DB_PATH = ":memory:";
 
@@ -8,7 +8,7 @@ const stats = await import("./core/stats.ts");
 const { db } = await import("./core/db.ts");
 
 /** 连上时板子声明自己有什么：一个回路两个实体，开关 + 功率表 */
-const FULL: EntityDef[] = [
+const FULL: Entity[] = [
   { id: "light", name: "照明", state: false },
   { id: "light-meter", name: "照明功率", power_w: 0, energy_kwh: 2.1 },
 ];
@@ -36,7 +36,7 @@ function fakeDevice(id: string, full = FULL) {
       post("pub_entities", { ts, name, entities: full });
     },
     /** 之后哪个实体变了就补一份。obey=false 模拟令下得去但继电器不动作 */
-    report(entities: EntityDef[], ts = sec(), obey = true) {
+    report(entities: Entity[], ts = sec(), obey = true) {
       for (const m of this.received()) {
         if (m.type !== "pub_switch") continue;
         if (obey) {
@@ -106,7 +106,7 @@ test("没变化的实体不上报，也就不产生事件", () => {
   const d = fakeDevice("esp-105");
   d.setup();
   const seen: string[] = [];
-  const off = hub.watch((e) => seen.push(`${e.type}:${"id" in e ? e.id : e.deviceId}`));
+  const off = hub.watch((e) => seen.push(`${e.type}:${"id" in e ? e.id : e.device_id}`));
   d.report([{ id: "light", state: true }, { id: "light-meter", power_w: 55, energy_kwh: 2.1 }]);
   d.report([{ id: "light-meter", power_w: 55, energy_kwh: 2.1 }]); // 一模一样，什么都不该发
   off();
@@ -192,8 +192,8 @@ test("令下得去但继电器不动：板子只管回报实际状态", async ()
 test("整房断电：按 device 展开到所有开关，功率表不参与", () => {
   const d = fakeDevice("esp-112");
   d.setup();
-  expect(hub.resolve({ deviceId: "esp-112" }).map((e) => e.id)).toEqual(["light"]);
-  expect(hub.resolve({ deviceId: "esp-999" })).toEqual([]);
+  expect(hub.resolve({ device_id: "esp-112" }).map((e) => e.id)).toEqual(["light"]);
+  expect(hub.resolve({ device_id: "esp-999" })).toEqual([]);
 });
 
 test("设备离线时不下令", () => {

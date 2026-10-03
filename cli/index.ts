@@ -34,10 +34,10 @@ const dump = (v: unknown) => console.log(JSON.stringify(v, null, 2));
 const isSwitch = (e: Entity) => e.state !== undefined;
 const stateText = (e: Entity) => (isSwitch(e) ? (e.state ? c.green("通") : c.gray("断")) : watt(e.power_w ?? 0));
 
-/** esp-301/light → { deviceId, id } */
+/** esp-301/light → { device_id, id } */
 function parseArg(r: string) {
-  const [deviceId, id] = r.split("/");
-  return id ? { deviceId, id } : fail(`实体引用要写成 设备/实体，例如 esp-301/light：${r}`);
+  const [device_id, id] = r.split("/");
+  return id ? { device_id, id } : fail(`实体引用要写成 设备/实体，例如 esp-301/light：${r}`);
 }
 
 type DeviceRow = Device & { power: number; energy: number };
@@ -76,7 +76,7 @@ async function entities() {
   table(
     ["实体", "名称", "状态", "电量"],
     rows.map((e) => [
-      `${e.deviceId}/${e.id}`,
+      `${e.device_id}/${e.id}`,
       e.name,
       stateText(e),
       e.energy_kwh === undefined ? c.gray("—") : `${e.energy_kwh.toFixed(3)} kWh`,
@@ -86,10 +86,10 @@ async function entities() {
 }
 
 async function show(r: string) {
-  const { deviceId, id } = parseArg(r);
-  const e = await get<Entity>(`/entities/${deviceId}/${id}`);
+  const { device_id, id } = parseArg(r);
+  const e = await get<Entity>(`/entities/${device_id}/${id}`);
   if (JSON_OUT) return dump(e);
-  console.log(`${c.bold(e.name)}  ${c.dim(`${deviceId}/${id}`)}`);
+  console.log(`${c.bold(e.name)}  ${c.dim(`${device_id}/${id}`)}`);
   console.log(`  ${isSwitch(e) ? "开关" : "功率表"}  ${stateText(e)}`);
   if (e.energy_kwh !== undefined) console.log(`  电量    ${e.energy_kwh.toFixed(3)} kWh`);
   console.log(`  更新时间 ${clock(e.ts)}`);
@@ -99,7 +99,7 @@ async function call(state?: boolean) {
   const pos = args[1] && !args[1].startsWith("--") ? args[1] : undefined;
   const device = flag("device");
   if (!pos && !device) fail("用法: em on|off|toggle <设备/实体>，或 em off --device=esp-301");
-  const body = pos ? { ...parseArg(pos), state } : { deviceId: device, state };
+  const body = pos ? { ...parseArg(pos), state } : { device_id: device, state };
   const r = await fetch(`${HOST}/api/actions`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -113,12 +113,12 @@ async function call(state?: boolean) {
 }
 
 async function powerChart(r: string) {
-  const { deviceId, id } = parseArg(r);
+  const { device_id, id } = parseArg(r);
   const to = now();
   const from = to - Number(flag("hours") ?? 1) * 3600;
   const [s, e] = await Promise.all([
-    get<StatSeries>(`/statistics/${deviceId}/${id}?from=${from}&to=${to}`),
-    get<Entity>(`/entities/${deviceId}/${id}`),
+    get<StatSeries>(`/statistics/${device_id}/${id}?from=${from}&to=${to}`),
+    get<Entity>(`/entities/${device_id}/${id}`),
   ]);
   if (JSON_OUT) return dump(s);
   console.log(`${c.bold(e.name)}  ${c.dim(r)}  ${c.dim(`${s.points.length} 个 ${s.bucket} 秒桶`)}`);
@@ -140,10 +140,10 @@ async function powerChart(r: string) {
 }
 
 async function history(r: string) {
-  const { deviceId, id } = parseArg(r);
+  const { device_id, id } = parseArg(r);
   const to = now();
   const from = to - Number(flag("hours") ?? 24) * 3600;
-  const j = await get<{ states: { ts: number; state: string }[] }>(`/history/${deviceId}/${id}?from=${from}&to=${to}`);
+  const j = await get<{ states: { ts: number; state: string }[] }>(`/history/${device_id}/${id}?from=${from}&to=${to}`);
   if (JSON_OUT) return dump(j);
   if (!j.states.length) return console.log(c.gray("这段时间没有开关动作"));
   table(
@@ -179,9 +179,9 @@ function showEvent(e: Event) {
   const t = c.dim(clock(e.ts));
   if (e.type === "state") {
     const v = typeof e.state === "boolean" ? (e.state ? c.green("通") : c.gray("断")) : watt(Number(e.state));
-    console.log(`${t} ${pad(`${e.deviceId}/${e.id}`, 26)} ${pad(e.name, 12)} ${pad(v, 12)}`);
+    console.log(`${t} ${pad(`${e.device_id}/${e.id}`, 26)} ${pad(e.name, 12)} ${pad(v, 12)}`);
   } else {
-    console.log(`${t} ${pad(e.deviceId, 26)} ${e.online ? c.green("上线") : c.red("掉线")}`);
+    console.log(`${t} ${pad(e.device_id, 26)} ${e.online ? c.green("上线") : c.red("掉线")}`);
   }
 }
 

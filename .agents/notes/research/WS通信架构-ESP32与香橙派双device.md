@@ -42,7 +42,7 @@ ESP32 和香橙派大屏**不是同类 device**，是这个系统里两个不同
 | 域 | 执行域 | 感知域（兼人机界面） |
 | 唯一权威数据 | `power` / `energy`（电表读数）、`relays`（断路器实际状态） | `occupants`（房间内人数）、图像告警 |
 | 硬件前提 | RS485 + 可控断路器 | 摄像头 + NPU。**没有 NPU 就没有人数** |
-| 房间归属 | 服务器按 deviceId 认领，板子不知道自己在哪间房 | 同上 |
+| 房间归属 | 服务器按 device_id 认领，板子不知道自己在哪间房 | 同上 |
 
 **关键推论：`occupants` 的生产者不是 ESP32，是香橙派。**
 
@@ -56,7 +56,7 @@ ESP32 和香橙派大屏**不是同类 device**，是这个系统里两个不同
 
 ### 一个香橙派管几个房间？
 
-MVP：**一间房一个香橙派**，镜头对准房门，与该房的 ESP32 一一对应。理由是「跨线计数」天然是房间级的 —— 计数线画在哪扇门框上，就天然决定了归属哪间房。协议上留口子（服务器按 deviceId 认领房间，板子不必知道自己在哪间房），多房间是后面加 `sites` 字段的事，现在不加。
+MVP：**一间房一个香橙派**，镜头对准房门，与该房的 ESP32 一一对应。理由是「跨线计数」天然是房间级的 —— 计数线画在哪扇门框上，就天然决定了归属哪间房。协议上留口子（服务器按 device_id 认领房间，板子不必知道自己在哪间房），多房间是后面加 `sites` 字段的事，现在不加。
 
 ---
 
@@ -64,7 +64,7 @@ MVP：**一间房一个香橙派**，镜头对准房门，与该房的 ESP32 一
 
 | # | 问题 | 后果 |
 |---|---|---|
-| 1 | `/ws` 只认 `deviceId`，没有 role | **这是真 bug**：大屏按现在的接法连上去会被注册成下位机，收到 relay 命令，它的 telemetry 会被当电表读数写进 `samples` 表 |
+| 1 | `/ws` 只认 `device_id`，没有 role | **这是真 bug**：大屏按现在的接法连上去会被注册成下位机，收到 relay 命令，它的 telemetry 会被当电表读数写进 `samples` 表 |
 | 2 | 观察者只有 SSE (`/api/events`)，单向 | 大屏没法下发通断令，只能靠另开一条 REST |
 | 3 | OPI 侧 REST 轮询 2s | 状态撕裂（多个 GET 拿到不同时刻的快照）、2s 延迟、无效请求 |
 | 4 | 没有重连退避 | 拔网线/服务器重启后要手动重启进程 |
@@ -75,8 +75,8 @@ MVP：**一间房一个香橙派**，镜头对准房门，与该房的 ESP32 一
 ## 三、方案：一个 WS 入口，三种 role
 
 ```
-ws://host/ws?role=meter&deviceId=esp32-301       # 执行域
-ws://host/ws?role=sense&deviceId=opi-301         # 感知域
+ws://host/ws?role=meter&device_id=esp32-301       # 执行域
+ws://host/ws?role=sense&device_id=opi-301         # 感知域
 ws://host/ws?role=console&clientId=bigscreen-1   # 控制台（大屏 UI）
 ```
 
@@ -127,7 +127,7 @@ export type Role = "meter" | "sense" | "console";
 /** 上行 */
 export type UpMsg =
   // meter
-  | { type: "hello"; deviceId: string; channels: string[] }
+  | { type: "hello"; device_id: string; channels: string[] }
   | { type: "telemetry"; ts: number; readings: Reading[] }   // occupants 移走
   | { type: "relay_state"; ts: number; relays: { channelId: string; on: boolean }[] }
   // sense
@@ -140,7 +140,7 @@ export type UpMsg =
 
 /** 下行 */
 export type DownMsg =
-  | { type: "welcome"; role: Role; deviceId: string; room: string; ts: number; snapshot: Snapshot }
+  | { type: "welcome"; role: Role; device_id: string; room: string; ts: number; snapshot: Snapshot }
   | { type: "relay"; ts: number; channelId: string; on: boolean }   // 只发给 meter
   | { type: "event"; e: Event }                                   // 只发给 console
   | { type: "ack"; ts: number; ref: string }                      // 命令受理回执
@@ -150,8 +150,8 @@ export type DownMsg =
 `Event` 扩一条 `presence`：
 
 ```ts
-| { type: "presence"; ts: number; deviceId: string; room: string; occupants: number }
-| { type: "alarm"; ts: number; deviceId: string; room: string; kind: string; message: string }
+| { type: "presence"; ts: number; device_id: string; room: string; occupants: number }
+| { type: "alarm"; ts: number; device_id: string; room: string; kind: string; message: string }
 ```
 
 时间一律 `number` 秒级时间戳，沿用现有约定。

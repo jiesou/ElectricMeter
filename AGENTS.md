@@ -1,12 +1,13 @@
 # AGENTS.md — 项目定义
 
-> AGENTS.md 只定义项目当下状态，不放路线选择等过程性研究
-> 过程性研究文稿，讨论纪要参考 `.agents/notes/AGENTS.md`
+> AGENTS.md 只定义项目当下状态，即 **做什么**，不放细节实现和过程性研究
+> 细节实现和过程性研究参考 `.agents/notes/AGENTS.md`
 
 ## 开发原则
 
 - 我们要的是精简，易读可维护原型，不是工业化项目，我们要的是“它能跑起来演示”，而不是“能落地”
-  - 想象一个初级程序员，不看注释能不能轻松读懂代码。将这个设为标准
+  - 想象一个初级程序员， **不看注释** 能不能轻松读懂代码。将这个设为标准
+  - 不要堆砌文档和注释！让代码自己说话
 - 涉及到的全部时间，都直接使用 number 秒级时间戳，不使用任何特定时间格式，便于客户机单片机处理
 - 保护性代码几乎不需要，message.error 都可以少一点，“it just work”即可，确保代码实现极度可读、代码量少、简单高效。代码的“简单，不overengineered”非常非常重要
 - 不要 Overengineering！不要 Overengineering！不要 Overengineering！保持代码实现简短简单。如果可能，减少代码的更改
@@ -26,45 +27,27 @@
 
 ## 已实现
 
-**采集 → 计量 → 统计 → 通断**，全链路闭环，硬件没到货先用模拟器顶替
-
 - **shared/**
-  - `types.ts` —— 实体模型。实体只由 `deviceId` + `id` 两个字段定位，**没有 `ref`、没有 `kind`、没有 `action`**
-    三种概念：实体是哪种，看它有什么字段——有 `state` 是开关，有 `power_w` 是功率读数，
-    有 `energy_kwh` 是累计电量。取值也自描述：`state` / `power_w` / `energy_kwh`，不带单位表和类型表
-  - 上行只有 `pub_entities` 一种消息：连上发一份完整声明（带 `name`），之后哪个实体变了就补一份，
-    **没提到的保持原样**。所以 `name` 也只在第一次给
-  - `ALIVE` / `TIMEOUT` —— 心跳节奏与失联判定，服务器和板子得一致，所以放在协议里
+  - `types.ts` —— 数据模型与协议定义，用户明确定死
 - **server/**
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
-  - `core/db.ts` —— SQLite 连接与三张表建表；查询 SQL 写在实际使用它的模块
-  - `core/hub.ts` —— 在线连接表 + 内存实体注册表（deviceId → id → 实体）+ `WSMessageHandler` 数组（谁关心谁注册）。
-    实体表跟着设备走、不跟着连接走：掉线时实体照留，重连后接着更新
-  - `core/hub.ts` 的失联判定 —— `lastSeen` 只在内存里、只服务超时判定，不落库也不对外暴露。
-    板子心跳 30s 一次（`ALIVE`），超过 `TIMEOUT`（默认 75s，`EM_TIMEOUT` 可覆盖）没动静就当掉线主动断开。
-    TCP 断开能感知到拔网线，设备死机时连接可能还半开着，只有「心跳 + 超时」能发现
-  - `core/stats.ts` —— 5 秒时间桶，时间加权均值与功率积分。只做功率
-  - `routes/api.ts` —— REST + SSE
-  - `simulator/esp32.ts` —— 下位机模拟器。一个回路两个实体（`light` 开关 / `light-meter` 功率表），
-    1000ms 一采、只上报变了的实体；电量在板上累加并随功率一起报，服务器拿它当读数、
-    两次读数之间补功率积分；电水壶占空比，断路器真实合闸分闸，应用层心跳 30s 一次
-  - 电量 ＝ 板子报的读数 ＋ 它之后这段时间的功率积分。设备离线时靠最后功率外推，没有总表
+  - `core/hub.ts` —— 相当于老项目的 ClientManager：在线连接 + `WSMessageHandler` 数组（谁关心谁注册）。
+  - `core/db.ts` —— SQLite 连接与建表；查询 SQL 写在实际使用它的模块
+    实体就是数据库里的行，没有内存实体注册表；**实时读数一律不落库**，只在内存里被 REST / SSE 读走
+  - `simulator/esp32.ts` —— 下位机模拟器
 - **cli/**（`em`，运行期零依赖）
   实体引用写作 `esp-301/light`。默认总览（设备在线 / 当前功率 / 电量）/ 实体清单 / 实体详情 /
-  远程通断（`--device=` 整房）/ 功率波形 + 分时电量 / 开关时间线 / 实时事件流，全局 `--json` 输出原始 JSON
-- **REST**
-  `GET /api/health`、`GET /api/devices`（带 power / energy 的总览）、`GET /api/entities?device=`、
-  `GET /api/entities/:deviceId/:id`、`GET /api/history/:deviceId/:id`、`GET /api/statistics/:deviceId/:id?from=&to=`、
-  `POST /api/actions`（`{ deviceId, id?, state? }`，只给 deviceId 就是整房断电，不给 state 就是取反）
-- **SSE** `GET /api/events` —— 事件自带 `deviceId` / `id` / `name`，观察者不用回查就能渲染
-- **测试** `bun test`
-- **端口** server `8080`，`PORT` / `EM_HOST` / `WS` 可覆盖
+  远程通断（`--device=` 整房）/ 实时事件流，全局 `--json` 输出原始 JSON
 
 ## 已规划
 
 > 实现后挪到上方，然后从这里删除，不留
 
-- **研判引擎** `core/policy.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
+- `core/hub.ts` 的失联判定 —— 应该复刻老项目的经验
+- `routes/*.ts` —— REST + SSE 待敲定实现
+- action 动作传递系统
+- **历史记录与统计分析** —— 怎么做见 `.agents/notes/decisions/历史记录与统计.md`
+- **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
 - **前端页面** —— 桌面 / 平板 / 手机多端，数据接口已就绪（见「已实现」的 REST + SSE）
   客房管理 + 客房监控：一个 ESP32 管一个客房，一个客房两三路（照明 / 插座 / 空调）
 - **摄像头人数感知** —— 香橙派端侧 AI，人体框从判定线进=人进、从线出=人出，累计房间内人数

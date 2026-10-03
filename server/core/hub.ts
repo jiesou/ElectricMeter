@@ -17,8 +17,8 @@ type DeviceRow = { id: string; name: string; model: string | null; fw_version: s
 /** lastSeen 只服务失联判定，不落库也不对外暴露 */
 type Conn = { device: Device; ws: WSContext; lastSeen: number };
 
-const conns = new Map<string, Conn>(); // deviceId → 连接，一个连接一个身份
-const entities = new Map<string, Map<string, Entity>>(); // deviceId → id → 实体，只在内存
+const conns = new Map<string, Conn>(); // device_id → 连接，一个连接一个身份
+const entities = new Map<string, Map<string, Entity>>(); // device_id → id → 实体，只在内存
 /** 板子报来的电量读数；实时电量＝这个读数＋它之后这段时间的功率积分 */
 const energyBase = new Map<string, { kwh: number; ts: number }>();
 const observers = new Set<(e: Event) => void>();
@@ -39,12 +39,12 @@ export const listDevices = () =>
       online: conns.has(d.id),
     }));
 export const listEntities = () => [...entities.values()].flatMap((m) => [...m.values()]);
-export const getEntity = (deviceId: string, id: string) => entities.get(deviceId)?.get(id);
-export const isOnline = (deviceId: string) => conns.has(deviceId);
+export const getEntity = (device_id: string, id: string) => entities.get(device_id)?.get(id);
+export const isOnline = (device_id: string) => conns.has(device_id);
 
 /** 累计电量：板子最近一次报的读数 + 它之后这段的功率积分。同一时刻的量不会算两遍 */
 export function energyKwh(e: Entity, at: number): number {
-  const base = energyBase.get(`${e.deviceId}/${e.id}`);
+  const base = energyBase.get(`${e.device_id}/${e.id}`);
   const wsec = base ? Math.max(0, (e.power_w ?? 0) * (at - base.ts)) : 0;
   return (e.energy_kwh ?? 0) + wsec / 3.6e6;
 }
@@ -57,7 +57,7 @@ export function watch(fn: (e: Event) => void) {
 const emit = (e: Event) => {
   for (const fn of observers) fn(e);
 };
-const send = (deviceId: string, m: WSMessage) => conns.get(deviceId)?.ws.send(JSON.stringify(m));
+const send = (device_id: string, m: WSMessage) => conns.get(device_id)?.ws.send(JSON.stringify(m));
 
 /**
  * 板子自己有什么。连上发一份（带 name），之后哪个实体变了就补一份，没提到的保持原样。
@@ -87,7 +87,7 @@ handlers.pub_entities = (device, _reply, m) => {
     const e = table.get(id) ?? {
       id,
       name: entityName ?? id,
-      deviceId: device.id,
+      device_id: device.id,
       state: values.power_w === undefined ? (last ? last.state === "true" : false) : undefined,
       ts,
     };
@@ -102,7 +102,7 @@ handlers.pub_entities = (device, _reply, m) => {
         ts,
         String(values.state),
       ]);
-      emit({ type: "state", ts, deviceId: device.id, id, name: e.name, state: values.state });
+      emit({ type: "state", ts, device_id: device.id, id, name: e.name, state: values.state });
     }
     if (values.energy_kwh !== undefined) {
       e.energy_kwh = values.energy_kwh;
@@ -114,7 +114,7 @@ handlers.pub_entities = (device, _reply, m) => {
       e.ts = ts;
       record(device.id, id, values.power_w, ts); // 读数每个采样都记：时间积分靠「上一段持续了多久」推进
       // 但只有变了才对外发事件，否则观察者每秒被刷一遍
-      if (changed) emit({ type: "state", ts, deviceId: device.id, id, name: e.name, state: values.power_w });
+      if (changed) emit({ type: "state", ts, device_id: device.id, id, name: e.name, state: values.power_w });
     }
     table.set(id, e);
   }
@@ -129,11 +129,11 @@ handlers.ack_switch = () => {
 
 handlers.pub_alive = (_device, reply) => reply({ type: "ack_alive", ts: now() });
 
-export function connect(deviceId: string, ws: WSContext) {
-  db.run("INSERT OR IGNORE INTO device (id, name) VALUES (?, ?)", [deviceId, deviceId]);
+export function connect(device_id: string, ws: WSContext) {
+  db.run("INSERT OR IGNORE INTO device (id, name) VALUES (?, ?)", [device_id, device_id]);
   const saved = db
     .query<DeviceRow, [string]>("SELECT id, name, model, fw_version FROM device WHERE id = ?")
-    .get(deviceId)!;
+    .get(device_id)!;
   const device: Device = {
     id: saved.id,
     name: saved.name,
@@ -141,13 +141,13 @@ export function connect(deviceId: string, ws: WSContext) {
     fwVersion: saved.fw_version ?? undefined,
     online: true,
   };
-  conns.set(deviceId, { device, ws, lastSeen: now() });
-  emit({ type: "device", ts: now(), deviceId, online: true });
+  conns.set(device_id, { device, ws, lastSeen: now() });
+  emit({ type: "device", ts: now(), device_id, online: true });
 }
 
-export function disconnect(deviceId: string) {
-  if (!conns.delete(deviceId)) return;
-  emit({ type: "device", ts: now(), deviceId, online: false });
+export function disconnect(device_id: string) {
+  if (!conns.delete(device_id)) return;
+  emit({ type: "device", ts: now(), device_id, online: false });
 }
 
 /**
@@ -155,26 +155,26 @@ export function disconnect(deviceId: string) {
  * 只有这里能发现。断连后板子会重连，重连时重新声明自己有什么。
  */
 export function checkTimeout(at = now()) {
-  for (const [deviceId, c] of conns) {
+  for (const [device_id, c] of conns) {
     if (at - c.lastSeen <= TIMEOUT) continue;
-    conns.delete(deviceId);
-    emit({ type: "device", ts: at, deviceId, online: false });
+    conns.delete(device_id);
+    emit({ type: "device", ts: at, device_id, online: false });
     c.ws.close();
   }
 }
 
-export function handleMessage(deviceId: string, raw: string) {
-  const c = conns.get(deviceId)!;
+export function handleMessage(device_id: string, raw: string) {
+  const c = conns.get(device_id)!;
   c.lastSeen = now(); // 收到任何一条都算还活着，板子心跳 30s 一次保底
   const m = JSON.parse(raw) as WSMessage;
-  handlers[m.type]?.(c.device, (r) => send(deviceId, r), m);
+  handlers[m.type]?.(c.device, (r) => send(device_id, r), m);
 }
 
 /** 下一个动作：说清要到什么状态，取反在这里算完。设备离线、或者不是可开关的实体，就返回 false */
 export function command(e: Entity, state: boolean): boolean {
-  if (!conns.has(e.deviceId) || e.state === undefined) return false;
+  if (!conns.has(e.device_id) || e.state === undefined) return false;
   inflight++;
-  send(e.deviceId, { type: "pub_switch", ts: now(), id: e.id, state });
+  send(e.device_id, { type: "pub_switch", ts: now(), id: e.id, state });
   return true;
 }
 
@@ -200,11 +200,11 @@ export function waitAck(timeout = 5000): Promise<number> {
 /** 可通断的实体：一个 id 就是一个，或者整台设备（整房断电） */
 export function resolve(target: Target): Entity[] {
   if (target.id) {
-    const e = getEntity(target.deviceId ?? "", target.id);
+    const e = getEntity(target.device_id ?? "", target.id);
     return e && e.state !== undefined ? [e] : [];
   }
-  if (!target.deviceId) return [];
-  return [...(entities.get(target.deviceId)?.values() ?? [])].filter((e) => e.state !== undefined);
+  if (!target.device_id) return [];
+  return [...(entities.get(target.device_id)?.values() ?? [])].filter((e) => e.state !== undefined);
 }
 
 /** 总览：在线状态 + 当前功率 + 电量 */

@@ -20,18 +20,18 @@ model Device {
 
 /// 开关的状态变化历史。高频读数进 statistics，不进这里
 model State {
-  deviceId String
+  device_id String
   key      String
   ts       Int
   state    String
 
-  @@id([deviceId, key, ts])
+  @@id([device_id, key, ts])
   @@index([ts])
 }
 
 /// 时间桶聚合。原始样本一律不落盘，这张表就是全部历史
 model Statistics {
-  deviceId    String
+  device_id    String
   key         String
   bucketStart Int
   mean        Float
@@ -39,6 +39,6 @@ model Statistics {
   max         Float
   sum         Float
 
-  @@id([deviceId, key, bucketStart])
+  @@id([device_id, key, bucketStart])
   @@index([bucketStart])
 }

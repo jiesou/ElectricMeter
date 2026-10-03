@@ -16,24 +16,24 @@ api.get("/devices", (c) => c.json(deviceTotals()));
 /** 不给 device 就是所有设备的实体 */
 api.get("/entities", (c) => {
   const { device } = c.req.query();
-  return c.json(device ? listEntities().filter((e) => e.deviceId === device) : listEntities());
+  return c.json(device ? listEntities().filter((e) => e.device_id === device) : listEntities());
 });
 
-api.get("/entities/:deviceId/:id", (c) => {
-  const { deviceId, id } = c.req.param();
-  const e = getEntity(deviceId, id);
-  return e ? c.json(e) : c.json({ error: `未知实体: ${deviceId}/${id}` }, 404);
+api.get("/entities/:device_id/:id", (c) => {
+  const { device_id, id } = c.req.param();
+  const e = getEntity(device_id, id);
+  return e ? c.json(e) : c.json({ error: `未知实体: ${device_id}/${id}` }, 404);
 });
 
-api.get("/statistics/:deviceId/:id", (c) => {
-  const { deviceId, id } = c.req.param();
+api.get("/statistics/:device_id/:id", (c) => {
+  const { device_id, id } = c.req.param();
   const to = Number(c.req.query("to") ?? now());
   const from = Number(c.req.query("from") ?? to - 86400);
-  return c.json(series(deviceId, id, from, to));
+  return c.json(series(device_id, id, from, to));
 });
 
-api.get("/history/:deviceId/:id", (c) => {
-  const { deviceId, id } = c.req.param();
+api.get("/history/:device_id/:id", (c) => {
+  const { device_id, id } = c.req.param();
   const to = Number(c.req.query("to") ?? now());
   const from = Number(c.req.query("from") ?? to - 86400);
   return c.json({
@@ -41,15 +41,15 @@ api.get("/history/:deviceId/:id", (c) => {
       .query<{ ts: number; state: string }, [string, string, number, number]>(
         "SELECT ts, state FROM state WHERE device_id = ? AND id = ? AND ts >= ? AND ts < ? ORDER BY ts",
       )
-      .all(deviceId, id, from, to),
+      .all(device_id, id, from, to),
   });
 });
 
-/** 通断：{ deviceId, id, state }。只给 deviceId 就是整房断电，不给 state 就是取反 */
+/** 通断：{ device_id, id, state }。只给 device_id 就是整房断电，不给 state 就是取反 */
 api.post("/actions", async (c) => {
   const target = (await c.req.json().catch(() => ({}))) as Target;
   const targets = resolve(target);
-  const ids = targets.filter((e) => command(e, target.state ?? !e.state)).map((e) => `${e.deviceId}/${e.id}`);
+  const ids = targets.filter((e) => command(e, target.state ?? !e.state)).map((e) => `${e.device_id}/${e.id}`);
   return c.json({ ts: now(), ids, sent: ids.length, acked: ids.length ? await waitAck() : 0 });
 });
 
