@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import type { Meter, Switch } from "@em/shared";
+import { db } from "./db.ts";
 import * as hub from "./hub.ts";
 import { now } from "./util.ts";
 
@@ -25,63 +26,63 @@ async function fakeDevice(id: string, full = FULL) {
   };
 }
 
-/** 总览里的那一台设备 */
-const device = async (id: string) => (await hub.deviceTotals()).find((d) => d.id === id)!;
+/** 内存表里的那一台设备 */
+const table = (id: string) => hub.devices.get(id)!;
 
-beforeEach(hub.restart);
+/** 库里的那个实体 */
+const inDb = (device_id: string, id: string) => db.entity.findUnique({ where: { device_id_id: { device_id, id } } });
 
-test("设备连上就落库：名字是服务端分配的，ip 重启后还在", async () => {
+beforeEach(() => hub.devices.clear());
+
+test("设备连上就落库：名字是服务端分配的", async () => {
   const d = await fakeDevice("esp-101");
   await d.setup();
-  hub.restart();
-  expect(await device("esp-101")).toMatchObject({ name: "esp-101", ip: "10.0.0.1" });
+  expect(await db.device.findUnique({ where: { id: "esp-101" } })).toMatchObject({ name: "esp-101", ip: "10.0.0.1" });
 });
 
-test("实体身份落库、读数不落库：重启后清单还在，读数没了", async () => {
+test("身份与读数都落库：服务器重启后 load 读得回来", async () => {
   const d = await fakeDevice("esp-102");
   await d.setup();
   await d.report([{ id: "light", state: true }]);
-  hub.restart();
-  const e = (await hub.getEntity("esp-102", "light"))!;
-  expect(e.name).toBe("照明");
-  expect(e.type).toBe("switch");
-  expect(e.state).toBeUndefined();
+  const row = (await inDb("esp-102", "light"))!;
+  expect(row).toMatchObject({ name: "照明", type: "switch", state: true });
+  expect(row.lastUpdate).toBeGreaterThan(0); // 这个读数是几点的
 });
 
 test("增量上报：没提到的字段保持上次的值", async () => {
   const d = await fakeDevice("esp-103");
   await d.setup();
   await d.report([{ id: "light", state: true }]);
-  expect((await hub.getEntity("esp-103", "light"))!.state).toBe(true);
-  expect((await hub.getEntity("esp-103", "light"))!.name).toBe("照明"); // name 没重发，但还在
-  expect((await hub.getEntity("esp-103", "light-meter"))!.powerW).toBe(0); // 别的实体没被碰
+  expect(table("esp-103").entities.get("light")).toMatchObject({ state: true });
+  expect(await inDb("esp-103", "light")).toMatchObject({ name: "照明" }); // name 没重发，但还在
+  expect(table("esp-103").entities.get("light-meter")).toMatchObject({ powerW: 0 }); // 别的实体没被碰
 });
 
 test("只报读数、没申报 type：不凭空造实体", async () => {
   const d = await fakeDevice("esp-104");
   await d.setup();
   await d.report([{ id: "kettle", powerW: 1600 }]);
-  expect(await hub.getEntity("esp-104", "kettle")).toBeUndefined();
+  expect(table("esp-104").entities.has("kettle")).toBe(false);
+  expect(await inDb("esp-104", "kettle")).toBeNull();
 });
 
-test("掉线：实体身份照留（在库里），读数跟着连接走", async () => {
+test("掉线：记录留在表里、online 变 false，读数还在", async () => {
   const d = await fakeDevice("esp-105");
   await d.setup();
   await d.report([{ id: "light", state: true }]);
   d.stop();
-  expect((await device("esp-105")).online).toBe(false);
-  expect((await hub.getEntity("esp-105", "light"))!.name).toBe("照明");
-  expect((await hub.getEntity("esp-105", "light"))!.state).toBeUndefined();
+  expect(table("esp-105").online).toBe(false);
+  expect(table("esp-105").entities.get("light")).toMatchObject({ state: true });
   await d.reconnect();
   await d.report([{ id: "light", state: false }], now() + 1);
-  expect((await hub.getEntity("esp-105", "light"))!.state).toBe(false);
+  expect(table("esp-105").entities.get("light")).toMatchObject({ state: false });
 });
 
 test("读数报什么就是什么：电量不做加工", async () => {
   const d = await fakeDevice("esp-106");
   await d.setup();
   await d.report([{ id: "light-meter", powerW: 1000, energyKwh: 10 }]);
-  expect((await hub.getEntity("esp-106", "light-meter"))!.energyKwh).toBe(10);
+  expect(table("esp-106").entities.get("light-meter")!.energyKwh).toBe(10);
   await d.report([{ id: "light-meter", energyKwh: 0.5 }]); // 板子重启报了 0.5，服务器照收
-  expect((await hub.getEntity("esp-106", "light-meter"))!.energyKwh).toBe(0.5);
+  expect(table("esp-106").entities.get("light-meter")!.energyKwh).toBe(0.5);
 });

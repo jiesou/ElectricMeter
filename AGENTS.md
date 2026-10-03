@@ -31,11 +31,15 @@
 
 > 这里只列项目结构，具体有什么直接读源码。不要太累赘
 
+> 结构实现细节，重点学习老项目 ~/Documents/dev/Projects/ElectricDriveSystem
+
 - **shared/**
   - `types.ts` —— 数据模型与协议定义，用户明确定死
 - **server/**
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
-  - `core/hub.ts` —— 相当于老项目的 ClientManager：在线连接 + `WSMessageHandler` 数组（谁关心谁注册）。
+  - `core/hub.ts` —— 相当于老项目的 ClientManager：所有设备的内存表（启动从库里全读）+ `WSMessageHandler` 数组（谁关心谁注册）；读数报来就写回库
+  - `routes/api.ts` —— API 挂载点 + `/health`
+  - `routes/devices.ts` / `routes/entities.ts` —— 一个区域一份路由，业务逻辑直接写在路由里
   - `core/db.ts`
   - `*.test.ts`
   - `simulator/esp32.ts` —— 下位机模拟器（还在用旧字段）
@@ -48,11 +52,11 @@
 > 实现后挪到上方，然后从这里删除，不留
 
 - `core/hub.ts` 的失联判定 —— 应该复刻老项目的经验
-- `routes/*.ts` —— REST + SSE 待敲定实现。SSE应该同时服务网页前端和slint界面前端
+- SSE —— 实时事件流，应该同时服务网页前端和 slint 界面前端
 - action 动作传递系统
 - **历史记录与统计分析** —— 怎么做见 `.agents/notes/decisions/历史记录与统计.md`
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
-- **前端页面** —— 桌面 / 平板 / 手机多端，数据接口已就绪（见「已实现」的 REST + SSE）
+- **前端页面** —— 桌面 / 平板 / 手机多端，数据接口已就绪（见「已实现」的 REST）
   客房管理 + 客房监控：一个 ESP32 管一个客房，一个客房两三路（照明 / 插座 / 空调）
 - **摄像头人数感知** —— 香橙派端侧 AI，人体框从判定线进=人进、从线出=人出，累计房间内人数
   - 复用民宿**现有监控**，不额外布传感器，毫米波雷达评委看烂了

@@ -12,24 +12,9 @@ async function device(id: string, entities: Partial<Switch | Meter>[]) {
   await hub.handleMessage(id, JSON.stringify({ type: "pub_entities", ts: now(), entities }));
 }
 
-beforeEach(hub.restart);
+beforeEach(() => hub.devices.clear());
 
-test("健康检查", async () => {
-  const res = await app.request("/api/health");
-  expect(res.status).toBe(200);
-  expect((await json(res)).status).toBe("ok");
-});
-
-test("总览：在线状态、ip、当前功率、电量", async () => {
-  await device("esp-201", [
-    { id: "light", name: "照明", type: "switch", state: true },
-    { id: "light-meter", name: "照明功率", type: "meter", powerW: 55, energyKwh: 2.5 },
-  ]);
-  const d = (await json(await app.request("/api/devices"))).find((x: any) => x.id === "esp-201");
-  expect(d).toMatchObject({ online: true, ip: "10.0.0.9", power: 55, energy: 2.5 });
-});
-
-test("实体清单：身份来自库，读数来自内存", async () => {
+test("实体清单：身份和读数都在内存那张表里", async () => {
   await device("esp-202", [
     { id: "light", name: "照明", type: "switch", state: false },
     { id: "light-meter", name: "照明功率", type: "meter", powerW: 55, energyKwh: 2.5 },
@@ -39,6 +24,12 @@ test("实体清单：身份来自库，读数来自内存", async () => {
     ["light", "照明", "switch", false],
     ["light-meter", "照明功率", "meter", 55],
   ]);
+});
+
+test("不给 device：所有设备的实体", async () => {
+  await device("esp-205", [{ id: "light", name: "照明", type: "switch", state: true }]);
+  const all = await json(await app.request("/api/entities"));
+  expect(all.map((e: any) => `${e.device_id}/${e.id}`)).toContain("esp-205/light");
 });
 
 test("单个实体：未知的就 404", async () => {

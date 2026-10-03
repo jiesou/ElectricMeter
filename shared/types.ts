@@ -5,6 +5,7 @@ export interface Entity {
   device_id: string;
   name: string;
   type: 'switch' | 'meter';
+  lastUpdate?: number; // 这个读数最后一次上报的时间（秒级时间戳），还没报过就没有
 }
 
 export interface Switch extends Entity {

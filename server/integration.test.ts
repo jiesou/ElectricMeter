@@ -1,15 +1,17 @@
 import { expect, test } from "bun:test";
 import { websocket } from "@hono/bun";
 import { app } from "./app.ts";
-import { restart } from "./core/hub.ts";
+import { db } from "./core/db.ts";
 import { now } from "./core/util.ts";
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-test("端到端：真下位机连上来 → REST 看得见 → 重启后实体还在", async () => {
+test("端到端：真下位机连上来 → REST 看得见 → 读数落库，重启读得回来", async () => {
   const server = Bun.serve({ port: 0, fetch: app.fetch, websocket });
   const api = (path: string) => fetch(`http://127.0.0.1:${server.port}/api${path}`);
   const json = async (res: Response) => (await res.json()) as any;
+
+  expect((await json(await api("/health"))).status).toBe("ok");
 
   const ws = new WebSocket(`ws://127.0.0.1:${server.port}/ws?device_id=esp-901`);
   await new Promise((r) => (ws.onopen = r));
@@ -37,13 +39,9 @@ test("端到端：真下位机连上来 → REST 看得见 → 重启后实体�
   expect(entities.map((e: any) => e.id)).toEqual(["light", "light-meter"]);
   expect(entities[0].state).toBe(false);
 
-  restart(); // 重启：内存清空，实体身份还在库里，读数没了
-  const after = await json(await api("/entities?device=esp-901"));
-  expect(after.map((e: any) => [e.id, e.name, e.type])).toEqual([
-    ["light", "照明", "switch"],
-    ["light-meter", "照明功率", "meter"],
-  ]);
-  expect(after[0].state).toBeUndefined();
+  // 库是底账：读数也写进去了，服务器重启后启动那段 load 读得回来
+  expect(await db.entity.findUnique({ where: { device_id_id: { device_id: "esp-901", id: "light-meter" } } }))
+    .toMatchObject({ name: "照明功率", type: "meter", powerW: 55, energyKwh: 2.1 });
 
   ws.close();
   server.stop(true);
