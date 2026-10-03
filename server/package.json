@@ -4,16 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch index.ts",
-    "start": "bun run index.ts",
+    "dev": "bun run db:push && bun run --watch index.ts",
+    "start": "bun run db:push && bun run index.ts",
     "sim": "bun run simulator/esp32.ts",
     "check": "bunx tsc --noEmit -p tsconfig.json",
-    "test": "bun test",
-    "db:push": "bunx prisma db push --schema prisma/schema.prisma"
+    "db:push": "bunx prisma generate && bunx prisma db push",
+    "test": "bun run test:db && bun test",
+    "test:db": "bunx prisma generate && DATABASE_URL=file:./data/electric.test.db bunx prisma db push --force-reset"
   },
   "dependencies": {
     "@em/shared": "workspace:*",
     "@hono/bun": "^1.0.0",
+    "@prisma/adapter-libsql": "7.10.0",
+    "@prisma/client": "7.10.0",
     "hono": "^4.13.0"
   },
   "devDependencies": {

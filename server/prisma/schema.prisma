@@ -1,44 +1,31 @@
-// 表结构。运行期不加载 Prisma Client——建表在 core/db.ts，查询写在业务模块。
-// 这份文件给 Prisma Studio 看、给未来迁移用；改了这里记得同步 core/db.ts 的建表 SQL。
+// 表结构 = shared/types.ts 的模型：设备、实体两行身份。
+// 实时读数（开关通断、功率、电量）不落库，只在内存里。
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider   = "prisma-client"
+  output     = "../generated/prisma"
+  runtime    = "bun"
+  engineType = "client"
 }
 
 datasource db {
   provider = "sqlite"
 }
 
-/// 一台下位机 = 一个 ESP32，管一间房
+/// 一台下位机 = 一个 ESP32，管一间房。online / lastSeen 是运行时的，不落库
 model Device {
-  id         String @id
-  name       String
-  model      String?
-  fwVersion  String?
-  lastSeen   Int    @default(0)
+  id       String   @id
+  name     String
+  ip       String?
+  entities Entity[]
 }
 
-/// 开关的状态变化历史。高频读数进 statistics，不进这里
-model State {
+/// 实体：一个回路的开关，或它的功率表。id 是设备侧的名字，没有第二套命名
+model Entity {
   device_id String
-  key      String
-  ts       Int
-  state    String
+  id        String
+  name      String
+  type      String
+  device    Device @relation(fields: [device_id], references: [id], onDelete: Cascade)
 
-  @@id([device_id, key, ts])
-  @@index([ts])
-}
-
-/// 时间桶聚合。原始样本一律不落盘，这张表就是全部历史
-model Statistics {
-  device_id    String
-  key         String
-  bucketStart Int
-  mean        Float
-  min         Float
-  max         Float
-  sum         Float
-
-  @@id([device_id, key, bucketStart])
-  @@index([bucketStart])
+  @@id([device_id, id])
 }

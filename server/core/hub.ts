@@ -1,221 +1,117 @@
 import type { WSContext } from "hono/ws";
-import type {
-  Device,
-  EntitiesMessage,
-  Entity,
-  Event,
-  Target,
-  WSMessage,
-  WSMessageHandler,
-} from "@em/shared";
-import { TIMEOUT } from "@em/shared";
+import type { Device, EntitiesMessage, Entity, WSMessage, WSMessageHandler } from "@em/shared";
 import { db } from "./db.ts";
-import { record } from "./stats.ts";
 import { now } from "./util.ts";
 
-type DeviceRow = { id: string; name: string; model: string | null; fw_version: string | null };
-/** lastSeen 只服务失联判定，不落库也不对外暴露 */
-type Conn = { device: Device; ws: WSContext; lastSeen: number };
+/** 实体现在的读数，设备报什么就有什么 */
+type Readings = { state?: boolean; powerW?: number; energyKwh?: number };
 
-const conns = new Map<string, Conn>(); // device_id → 连接，一个连接一个身份
-const entities = new Map<string, Map<string, Entity>>(); // device_id → id → 实体，只在内存
-/** 板子报来的电量读数；实时电量＝这个读数＋它之后这段时间的功率积分 */
-const energyBase = new Map<string, { kwh: number; ts: number }>();
-const observers = new Set<(e: Event) => void>();
-const handlers: Record<string, WSMessageHandler> = {}; // 谁关心谁注册
-const ackWaiters = new Set<() => void>();
-let inflight = 0;
+/** 在线设备：库里的身份 + 这条连接 + 它上面每个实体现在的读数 */
+const devices = new Map<string, Device & { ws: WSContext; lastSeen: number; entities: Map<string, Readings> }>();
+
+const handlers: WSMessageHandler[] = []; // 谁关心谁注册：每个处理器自己认报文类型
 
 /** 库里的每一台设备都在列，在线与否看当前有没有连接 */
-export const listDevices = () =>
-  db
-    .query<DeviceRow, []>("SELECT id, name, model, fw_version FROM device ORDER BY id")
-    .all()
-    .map((d) => ({
-      id: d.id,
-      name: d.name,
-      model: d.model ?? undefined,
-      fwVersion: d.fw_version ?? undefined,
-      online: conns.has(d.id),
-    }));
-export const listEntities = () => [...entities.values()].flatMap((m) => [...m.values()]);
-export const getEntity = (device_id: string, id: string) => entities.get(device_id)?.get(id);
-export const isOnline = (device_id: string) => conns.has(device_id);
-
-/** 累计电量：板子最近一次报的读数 + 它之后这段的功率积分。同一时刻的量不会算两遍 */
-export function energyKwh(e: Entity, at: number): number {
-  const base = energyBase.get(`${e.device_id}/${e.id}`);
-  const wsec = base ? Math.max(0, (e.power_w ?? 0) * (at - base.ts)) : 0;
-  return (e.energy_kwh ?? 0) + wsec / 3.6e6;
+async function listDevices(): Promise<Device[]> {
+  const rows = await db.device.findMany({ orderBy: { id: "asc" } });
+  return rows.map((d) => ({
+    ...d,
+    ip: d.ip ?? "",
+    online: devices.has(d.id),
+    lastSeen: devices.get(d.id)?.lastSeen ?? 0,
+  }));
 }
 
-export function watch(fn: (e: Event) => void) {
-  observers.add(fn);
-  return () => void observers.delete(fn);
-}
-
-const emit = (e: Event) => {
-  for (const fn of observers) fn(e);
-};
-const send = (device_id: string, m: WSMessage) => conns.get(device_id)?.ws.send(JSON.stringify(m));
-
-/**
- * 板子自己有什么。连上发一份（带 name），之后哪个实体变了就补一份，没提到的保持原样。
- * 所以实体表跟着设备走，不跟着连接走：掉线时实体照留，重连后接着更新。
- */
-handlers.pub_entities = (device, _reply, m) => {
-  const { name, model, fwVersion, entities: defs } = m as EntitiesMessage;
-  const ts = m.ts || now();
-  // 自我介绍只在连上时发一遍，之后是增量报文，没带的字段不能当成空的
-  if (name) device.name = name;
-  if (model) device.model = model;
-  if (fwVersion) device.fwVersion = fwVersion;
-  db.run(
-    "UPDATE device SET name = ?, model = COALESCE(?, model), fw_version = COALESCE(?, fw_version) WHERE id = ?",
-    [device.name, model ?? null, fwVersion ?? null, device.id],
-  );
-  const table = entities.get(device.id) ?? new Map<string, Entity>();
-
-  for (const def of defs) {
-    const { id, name: entityName, ...values } = def;
-    // 新实体：服务器重启就靠 states 表把开关初值捡回来，免得伪造一段假跳变
-    const last = db
-      .query<{ state: string }, [string, string]>(
-        "SELECT state FROM state WHERE device_id = ? AND id = ? ORDER BY ts DESC LIMIT 1",
-      )
-      .get(device.id, id);
-    const e = table.get(id) ?? {
-      id,
-      name: entityName ?? id,
-      device_id: device.id,
-      state: values.power_w === undefined ? (last ? last.state === "true" : false) : undefined,
-      ts,
-    };
-    if (entityName) e.name = entityName;
-    // 值只是「现在是多少」；电量另说，见 energyKwh
-    if (values.state !== undefined && e.state !== values.state) {
-      e.state = values.state;
-      e.ts = ts;
-      db.run("INSERT OR REPLACE INTO state (device_id, id, ts, state) VALUES (?, ?, ?, ?)", [
-        device.id,
-        id,
-        ts,
-        String(values.state),
-      ]);
-      emit({ type: "state", ts, device_id: device.id, id, name: e.name, state: values.state });
-    }
-    if (values.energy_kwh !== undefined) {
-      e.energy_kwh = values.energy_kwh;
-      energyBase.set(`${device.id}/${id}`, { kwh: values.energy_kwh, ts });
-    }
-    if (values.power_w !== undefined) {
-      const changed = e.power_w !== values.power_w;
-      e.power_w = values.power_w;
-      e.ts = ts;
-      record(device.id, id, values.power_w, ts); // 读数每个采样都记：时间积分靠「上一段持续了多久」推进
-      // 但只有变了才对外发事件，否则观察者每秒被刷一遍
-      if (changed) emit({ type: "state", ts, device_id: device.id, id, name: e.name, state: values.power_w });
-    }
-    table.set(id, e);
-  }
-  entities.set(device.id, table);
-};
-
-/** 设备确认动完了。回执不做关联，收到几个算几个 */
-handlers.ack_switch = () => {
-  inflight = Math.max(0, inflight - 1);
-  for (const w of ackWaiters) w();
-};
-
-handlers.pub_alive = (_device, reply) => reply({ type: "ack_alive", ts: now() });
-
-export function connect(device_id: string, ws: WSContext) {
-  db.run("INSERT OR IGNORE INTO device (id, name) VALUES (?, ?)", [device_id, device_id]);
-  const saved = db
-    .query<DeviceRow, [string]>("SELECT id, name, model, fw_version FROM device WHERE id = ?")
-    .get(device_id)!;
-  const device: Device = {
-    id: saved.id,
-    name: saved.name,
-    model: saved.model ?? undefined,
-    fwVersion: saved.fw_version ?? undefined,
-    online: true,
-  };
-  conns.set(device_id, { device, ws, lastSeen: now() });
-  emit({ type: "device", ts: now(), device_id, online: true });
-}
-
-export function disconnect(device_id: string) {
-  if (!conns.delete(device_id)) return;
-  emit({ type: "device", ts: now(), device_id, online: false });
-}
-
-/**
- * 失联判定：太久没收到任何消息就当成掉线。设备死机、网线松了，TCP 可能一直半开着，
- * 只有这里能发现。断连后板子会重连，重连时重新声明自己有什么。
- */
-export function checkTimeout(at = now()) {
-  for (const [device_id, c] of conns) {
-    if (at - c.lastSeen <= TIMEOUT) continue;
-    conns.delete(device_id);
-    emit({ type: "device", ts: at, device_id, online: false });
-    c.ws.close();
-  }
-}
-
-export function handleMessage(device_id: string, raw: string) {
-  const c = conns.get(device_id)!;
-  c.lastSeen = now(); // 收到任何一条都算还活着，板子心跳 30s 一次保底
-  const m = JSON.parse(raw) as WSMessage;
-  handlers[m.type]?.(c.device, (r) => send(device_id, r), m);
-}
-
-/** 下一个动作：说清要到什么状态，取反在这里算完。设备离线、或者不是可开关的实体，就返回 false */
-export function command(e: Entity, state: boolean): boolean {
-  if (!conns.has(e.device_id) || e.state === undefined) return false;
-  inflight++;
-  send(e.device_id, { type: "pub_switch", ts: now(), id: e.id, state });
-  return true;
-}
-
-/** 等回执。不做关联，收齐了或者超时就返回收到的条数 */
-export function waitAck(timeout = 5000): Promise<number> {
-  const start = inflight;
-  return new Promise((resolve) => {
-    const done = () => {
-      if (inflight > 0) return; // 还没收齐
-      clearTimeout(timer);
-      ackWaiters.delete(done);
-      resolve(start);
-    };
-    const timer = setTimeout(() => {
-      ackWaiters.delete(done);
-      resolve(start - inflight);
-    }, timeout);
-    ackWaiters.add(done);
-    if (inflight === 0) done();
+/** 实体清单：身份从库里读，读数从在线设备那儿叠上去 */
+export async function listEntities(device_id?: string): Promise<(Entity & Readings)[]> {
+  const rows = await db.entity.findMany({
+    where: device_id ? { device_id } : {},
+    orderBy: [{ device_id: "asc" }, { id: "asc" }],
   });
+  return rows.map((row) => ({
+    ...row,
+    type: row.type as Entity["type"],
+    ...devices.get(row.device_id)?.entities.get(row.id),
+  }));
 }
 
-/** 可通断的实体：一个 id 就是一个，或者整台设备（整房断电） */
-export function resolve(target: Target): Entity[] {
-  if (target.id) {
-    const e = getEntity(target.device_id ?? "", target.id);
-    return e && e.state !== undefined ? [e] : [];
-  }
-  if (!target.device_id) return [];
-  return [...(entities.get(target.device_id)?.values() ?? [])].filter((e) => e.state !== undefined);
+export async function getEntity(device_id: string, id: string): Promise<(Entity & Readings) | undefined> {
+  const row = await db.entity.findUnique({ where: { device_id_id: { device_id, id } } });
+  if (!row) return;
+  return { ...row, type: row.type as Entity["type"], ...devices.get(device_id)?.entities.get(id) };
 }
 
 /** 总览：在线状态 + 当前功率 + 电量 */
-export function deviceTotals() {
-  const at = now();
-  return listDevices().map((d) => {
-    const meters = [...(entities.get(d.id)?.values() ?? [])].filter((e) => e.power_w !== undefined);
+export async function deviceTotals() {
+  const [rows, entities] = [await listDevices(), await listEntities()];
+  return rows.map((d) => {
+    const meters = entities.filter((e) => e.device_id === d.id && e.type === "meter");
     return {
       ...d,
-      power: meters.reduce((s, e) => s + (e.power_w ?? 0), 0),
-      energy: meters.reduce((s, e) => s + energyKwh(e, at), 0),
+      power: meters.reduce((s, e) => s + (e.powerW ?? 0), 0),
+      energy: meters.reduce((s, e) => s + (e.energyKwh ?? 0), 0),
     };
   });
+}
+
+/**
+ * 板子自己有什么。连上把每个实体的 name/type 报一遍，之后哪个实体变了就补一份，没提到的保持原样。
+ * 身份落库、读数只在内存，所以掉线时实体照留、读数跟着连接走。
+ */
+handlers.push(async (device, _reply, m) => {
+  if (m.type !== "pub_entities") return;
+  const { entities } = m as EntitiesMessage;
+  const online = devices.get(device.id);
+  if (!online) return;
+  for (const e of entities as (Entity & Readings)[]) {
+    // 申报身份（带 type）时才写库，之后每秒的读数不碰数据库
+    if (e.type !== undefined) {
+      await db.entity.upsert({
+        where: { device_id_id: { device_id: device.id, id: e.id } },
+        create: { device_id: device.id, id: e.id, name: e.name ?? e.id, type: e.type },
+        update: { name: e.name ?? e.id },
+      });
+    }
+    const readings = online.entities.get(e.id) ?? {};
+    online.entities.set(e.id, readings);
+    if (e.state !== undefined) readings.state = e.state;
+    if (e.powerW !== undefined) readings.powerW = e.powerW;
+    if (e.energyKwh !== undefined) readings.energyKwh = e.energyKwh;
+  }
+});
+
+export async function connect(device_id: string, ws: WSContext, ip = "") {
+  // 先登记连接再写库：板子的第一条消息可能比这次写库更早到
+  devices.set(device_id, {
+    id: device_id,
+    name: device_id,
+    ip,
+    online: true,
+    lastSeen: now(),
+    ws,
+    entities: new Map(),
+  });
+  // 设备名由服务端分配，新设备先拿 id 顶
+  await db.device.upsert({
+    where: { id: device_id },
+    create: { id: device_id, name: device_id, ip },
+    update: { ip },
+  });
+}
+
+export function disconnect(device_id: string) {
+  devices.delete(device_id);
+}
+
+export async function handleMessage(device_id: string, raw: string) {
+  const online = devices.get(device_id);
+  if (!online) return; // 连接已经不在了，这条丢掉
+  online.lastSeen = now();
+  const m = JSON.parse(raw) as WSMessage;
+  for (const handle of handlers) await handle(online, (r) => online.ws.send(JSON.stringify(r)), m);
+}
+
+/** 服务器重启：内存里的一切清空，库不动。重启后还在的，才是真落了库 */
+export function restart() {
+  devices.clear();
 }

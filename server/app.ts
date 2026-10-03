@@ -16,10 +16,11 @@ app.get(
     if (!device_id) throw new Error("缺少 device_id");
     return {
       onOpen(_e, ws) {
-        connect(device_id, ws);
+        const raw = ws.raw as { remoteAddress?: string } | undefined;
+        void connect(device_id, ws, raw?.remoteAddress ?? "");
       },
       onMessage(e) {
-        handleMessage(device_id, String(e.data));
+        void handleMessage(device_id, String(e.data));
       },
       onClose() {
         disconnect(device_id);
