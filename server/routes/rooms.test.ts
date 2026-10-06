@@ -1,12 +1,12 @@
 import { beforeEach, expect, test } from "bun:test";
-import type { Meter, Switch } from "@em/shared";
+import type { Entity } from "@em/shared";
 import { app } from "../app.ts";
 import * as hub from "../core/hub.ts";
 import { now } from "../core/util.ts";
 
 const json = async (res: Response) => (await res.json()) as any;
 
-async function device(id: string, entities: Partial<Switch | Meter>[]) {
+async function device(id: string, entities: Entity[]) {
   await hub.connect(id, { send: () => {}, close: () => {} } as never, "10.0.0.9");
   await hub.handleMessage(id, JSON.stringify({ type: "pub_entities", ts: now(), entities }));
 }

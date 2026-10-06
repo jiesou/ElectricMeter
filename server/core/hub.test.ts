@@ -1,11 +1,11 @@
 import { beforeEach, expect, test } from "bun:test";
-import type { Meter, Switch } from "@em/shared";
+import type { Entity } from "@em/shared";
 import { db } from "./db.ts";
 import * as hub from "./hub.ts";
 import { now } from "./util.ts";
 
 /** 连上时板子声明自己有什么：一个回路两个实体，开关 + 功率表 */
-const FULL: Partial<Switch | Meter>[] = [
+const FULL: Entity[] = [
   { id: "light", name: "照明", type: "switch", state: false },
   { id: "light-meter", name: "照明功率", type: "meter", powerW: 0, energyKwh: 2.1 },
 ];
@@ -20,7 +20,7 @@ async function fakeDevice(id: string, full = FULL) {
     /** 连上先声明有什么 */
     setup: (ts = now()) => post("pub_entities", { ts, entities: full }),
     /** 之后哪个实体变了就补一份 */
-    report: (entities: Partial<Switch | Meter>[], ts = now()) => post("pub_entities", { ts, entities }),
+    report: (entities: Entity[], ts = now()) => post("pub_entities", { ts, entities }),
     stop: () => hub.disconnect(id),
     reconnect: open,
   };

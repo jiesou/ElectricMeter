@@ -1,5 +1,5 @@
-// 表结构 = shared/types.ts 的模型：设备、实体两张表。
-// 内存里那张表是这两张表的运行期镜像，读数变了就写回来。
+// 表结构跟随 shared/types.ts
+
 generator client {
   provider   = "prisma-client"
   output     = "../generated/prisma"
@@ -17,8 +17,6 @@ model Device {
   entities Entity[]
 }
 
-/// 实体：一个回路的开关，或它的功率表。id 是设备侧的名字，没有第二套命名。
-/// 下面四列是它现在的读数，板子报什么就是什么，lastUpdate 是最后一次报到的时间
 model Entity {
   device_id  String
   id         String

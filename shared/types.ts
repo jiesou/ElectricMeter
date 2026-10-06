@@ -2,9 +2,12 @@
 
 export interface Entity {
   id: string;
-  device_id: string;
-  name: string;
-  type: 'switch' | 'meter';
+  device_id?: string;
+  name?: string;
+  type?: 'switch' | 'meter';
+  state?: boolean;
+  powerW?: number;
+  energyKwh?: number;
   lastUpdate?: number; // 这个读数最后一次上报的时间（秒级时间戳），还没报过就没有
 }
 
@@ -46,17 +49,8 @@ export interface AckAliveMessage extends WSMessage {
   type: "ack_alive";
 }
 
-export interface EntityUpdate {
-  id: string;
-  name?: string;
-  type?: Entity["type"];
-  state?: boolean;
-  powerW?: number;
-  energyKwh?: number;
-}
-
-/* 下位机只报增量：除了 id 都可以不发，第一次出现时可以给 name，之后根据需要只报变了的读数。*/
+/* 下位机只报增量，详细entity字段都可以没有 */
 export interface EntitiesMessage extends WSMessage {
   type: "pub_entities";
-  entities: EntityUpdate[];
+  entities: Entity[];
 }

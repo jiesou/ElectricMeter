@@ -1,15 +1,12 @@
 import type { WSContext } from "hono/ws";
-import type { Device, EntitiesMessage, Entity, EntityUpdate, WSMessage, WSMessageHandler } from "@em/shared";
+import type { Device, EntitiesMessage, Entity, WSMessage, WSMessageHandler } from "@em/shared";
 import { db } from "./db.ts";
 import { now } from "./util.ts";
-
-/** 实体现在的读数，设备报什么就有什么 */
-type Readings = Pick<EntityUpdate, "state" | "powerW" | "energyKwh">;
 
 /** 所有设备：库是底账，这里是运行期那份（连接 + 读数 + 最后说话时间） */
 export const devices = new Map<
   string,
-  Device & { ws?: WSContext; entities: Map<string, Entity & Readings> }
+  Device & { ws?: WSContext; entities: Map<string, Entity> }
 >();
 
 // 服务器启动：库里的设备与实体全读进来，之后只有连接和读数在变
@@ -45,12 +42,13 @@ handlers.push(async (device, _reply, m) => {
   if (!online) return;
   for (const e of (m as EntitiesMessage).entities) {
     const old = online.entities.get(e.id);
-    if (!old && e.type === undefined) continue; // 没申报过身份，这条读数丢掉
+    const type = e.type ?? old?.type;
+    if (!type) continue; // 没申报过身份，这条读数丢掉
     const row = {
       device_id: device.id,
       id: e.id,
       name: e.name ?? old?.name ?? e.id,
-      type: e.type ?? old!.type,
+      type,
       state: e.state ?? old?.state,
       powerW: e.powerW ?? old?.powerW,
       energyKwh: e.energyKwh ?? old?.energyKwh,
