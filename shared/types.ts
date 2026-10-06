@@ -36,6 +36,8 @@ export interface WSMessage {
 export type WSMessageHandler = (device: Device, send: (m: WSMessage) => void, m: WSMessage) => void;
 
 /* 必要应用层心跳 */
+export const ALIVE = 30;
+
 export interface PubAliveMessage extends WSMessage {
   type: "pub_alive";
 }
@@ -44,8 +46,17 @@ export interface AckAliveMessage extends WSMessage {
   type: "ack_alive";
 }
 
+export interface EntityUpdate {
+  id: string;
+  name?: string;
+  type?: Entity["type"];
+  state?: boolean;
+  powerW?: number;
+  energyKwh?: number;
+}
+
 /* 下位机只报增量：除了 id 都可以不发，第一次出现时可以给 name，之后根据需要只报变了的读数。*/
 export interface EntitiesMessage extends WSMessage {
   type: "pub_entities";
-  entities: Entity[];
+  entities: EntityUpdate[];
 }

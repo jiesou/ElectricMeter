@@ -34,6 +34,13 @@ const inDb = (device_id: string, id: string) => db.entity.findUnique({ where: { 
 
 beforeEach(() => hub.devices.clear());
 
+test("应用层心跳收到 ack_alive", async () => {
+  const sent: string[] = [];
+  await hub.connect("esp-107", { send: (m: string) => sent.push(m), close: () => {} } as never, "10.0.0.1");
+  await hub.handleMessage("esp-107", JSON.stringify({ type: "pub_alive" }));
+  expect(sent.map((m) => JSON.parse(m).type)).toEqual(["ack_alive"]);
+});
+
 test("设备连上就落库：名字是服务端分配的", async () => {
   const d = await fakeDevice("esp-101");
   await d.setup();

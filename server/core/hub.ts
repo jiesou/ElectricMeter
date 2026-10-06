@@ -1,10 +1,10 @@
 import type { WSContext } from "hono/ws";
-import type { Device, EntitiesMessage, Entity, WSMessage, WSMessageHandler } from "@em/shared";
+import type { Device, EntitiesMessage, Entity, EntityUpdate, WSMessage, WSMessageHandler } from "@em/shared";
 import { db } from "./db.ts";
 import { now } from "./util.ts";
 
 /** 实体现在的读数，设备报什么就有什么 */
-type Readings = { state?: boolean; powerW?: number; energyKwh?: number };
+type Readings = Pick<EntityUpdate, "state" | "powerW" | "energyKwh">;
 
 /** 所有设备：库是底账，这里是运行期那份（连接 + 读数 + 最后说话时间） */
 export const devices = new Map<
@@ -31,6 +31,10 @@ for (const d of await db.device.findMany({ orderBy: { id: "asc" }, include: { en
 
 const handlers: WSMessageHandler[] = []; // 谁关心谁注册：每个处理器自己认报文类型
 
+handlers.push((_device, reply, m) => {
+  if (m.type === "pub_alive") reply({ type: "ack_alive", ts: now() });
+});
+
 /**
  * 板子自己有什么。连上把每个实体的 name/type 报一遍，之后哪个实体变了就补一份，没提到的保持原样。
  * 报来的都写回库，所以内存这张表始终就是库那张表。
@@ -39,7 +43,7 @@ handlers.push(async (device, _reply, m) => {
   if (m.type !== "pub_entities") return;
   const online = devices.get(device.id);
   if (!online) return;
-  for (const e of (m as EntitiesMessage).entities as (Entity & Readings)[]) {
+  for (const e of (m as EntitiesMessage).entities) {
     const old = online.entities.get(e.id);
     if (!old && e.type === undefined) continue; // 没申报过身份，这条读数丢掉
     const row = {
@@ -56,7 +60,7 @@ handlers.push(async (device, _reply, m) => {
     await db.entity.upsert({
       where: { device_id_id: { device_id: device.id, id: e.id } },
       create: row,
-      update: { name: row.name, state: row.state, powerW: row.powerW, energyKwh: row.energyKwh, lastUpdate: row.lastUpdate },
+      update: { name: row.name, type: row.type, state: row.state, powerW: row.powerW, energyKwh: row.energyKwh, lastUpdate: row.lastUpdate },
     });
   }
 });
