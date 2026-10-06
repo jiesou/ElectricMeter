@@ -52,8 +52,14 @@
   - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `nav-bar.slint` / `page-header.slint` / `camera-viewport.slint`
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
+- **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
+  - `App.vue` —— 持有客房数组、数据连接状态、搜索与筛选（进出详情不丢），全站一份
+  - `api.ts` —— `GET /api/rooms` 起手 + `/api/rooms/stream` 的 SSE；`mock.ts` 六间房假数据，`VITE_DEMO=1` 不连后端也能演示
+  - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房总览（汇总 / 搜索 / 筛选 / 房卡）、客房详情（电表读数 + 开关状态）、视频监控（`<img src="/api/cv/stream">` MJPEG，带重新加载与全屏）
+  - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`；开发服务把 `/api` 代理到 `127.0.0.1:8080`（`VITE_API_TARGET` 可改），`bun run --cwd web dev` / `build`
 
 > 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN 与真摄像头**尚未上板实测**。
+> 网页第一版的范围与取舍见 `.agents/notes/decisions/网页前端第一版设计.md`。
 
 ## 已规划
 
@@ -63,8 +69,6 @@
 - action 动作传递系统
 - **历史记录与统计分析** —— 怎么做见 `.agents/notes/decisions/历史记录与统计.md`
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
-- **前端页面** —— 桌面 / 平板 / 手机多端，数据接口已就绪（见「已实现」的 REST）
-  客房管理 + 客房监控：一个 ESP32 管一个客房，一个客房两三路（照明 / 插座 / 空调）
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **硬件下位机落地** —— RS485 电能表 + 可控断路器 + ESP32 接真实回路替换掉模拟器，协议与服务器都不用改
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）

@@ -1,7 +1,7 @@
 {
   "name": "electricmeter",
   "private": true,
-  "workspaces": ["shared", "server", "cli"],
+  "workspaces": ["shared", "server", "cli", "web"],
   "devDependencies": {
     "@types/bun": "^1.4.2"
   }
