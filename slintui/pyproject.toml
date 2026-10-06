@@ -1,0 +1,14 @@
+[project]
+name = "slintui"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "slint>=1.18.1b1",
+    "opencv-python",
+    "numpy",
+    "onnxruntime",
+    "frame-sender",
+]
+
+[tool.uv.sources]
+frame-sender = { path = "rust/frame_sender", editable = true }

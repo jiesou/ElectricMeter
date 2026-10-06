@@ -5,5 +5,11 @@ server/generated/
 *.db-wal
 *.db-shm
 
-# 另一个并行任务在写的 slintui，不进这个仓库
-slintui/
+# slintui：模型与测试素材不入库，用脚本下载
+slintui/.venv/
+slintui/.venv-export/
+slintui/models/
+slintui/samples/
+slintui/yolo11n.pt
+__pycache__/
+target/

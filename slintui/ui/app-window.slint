@@ -1,0 +1,113 @@
+import { Palette } from "std-widgets.slint";
+import { NavBar } from "nav-bar.slint";
+import { Sizing } from "sizing.slint";
+import { PageHeader } from "page-header.slint";
+import { PeoplePage } from "people-page.slint";
+import { PowerPage, PowerPageData } from "power-page.slint";
+import { SettingsPage } from "settings-page.slint";
+import { PeoplePageData } from "people-page-data.slint";
+import { SettingsPageData } from "settings-page-data.slint";
+
+export { PeoplePageData, PowerPageData, SettingsPageData }
+
+component WindowButton inherits Rectangle {
+    in property<string> label: "";
+    callback clicked();
+
+    width: 104px;
+    height: 52px;
+    border-radius: 16px;
+    background: touch.has-hover ? #ffffff26 : #ffffff12;
+
+    Text {
+        text: root.label;
+        color: white;
+        font-size: 28px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export global AppData {
+    in-out property<int> current-tab: 1;
+    callback stop-app();
+    callback swap-cameras();
+    callback tab-changed(int);
+}
+
+export component AppWindow inherits Window {
+    title: "民宿用电管理";
+    height: Sizing.screen-height;
+    width: Sizing.screen-width;
+    default-font-size: root.width < 801px ? 14px : 24px;
+    init => {
+        Palette.color-scheme = ColorScheme.dark;
+    }
+
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        Rectangle {
+            min-height: root.height - 58px;
+            clip: true;
+
+            if AppData.current-tab == 0 : PowerPage {
+                width: 100%;
+                height: 100%;
+            }
+            if AppData.current-tab == 1 : PeoplePage {
+                width: 100%;
+                height: 100%;
+            }
+            if AppData.current-tab == 2 : SettingsPage {
+                width: 100%;
+                height: 100%;
+            }
+        }
+
+        NavBar {
+            height: 58px;
+            current-index <=> AppData.current-tab;
+            tabs: ["客房用电", "人数监控", "设置"];
+            tab-changed(index) => {
+                AppData.tab-changed(index);
+            }
+        }
+    }
+
+    HorizontalLayout {
+        x: root.width - self.width - 20px;
+        y: 12px;
+        width: 336px;
+        height: 52px;
+        spacing: 12px;
+
+        WindowButton {
+            label: "⇄";
+            clicked => { AppData.swap-cameras(); }
+        }
+        WindowButton {
+            label: (Palette.color-scheme == ColorScheme.light) ? "🌣" : "☽";
+            clicked => {
+                Palette.color-scheme = (Palette.color-scheme == ColorScheme.light) ? ColorScheme.dark : ColorScheme.light;
+            }
+        }
+        WindowButton {
+            label: "X";
+            clicked => { AppData.stop-app(); }
+        }
+    }
+
+    power-refresh := Timer {
+        interval: 1000ms;
+        running: true;
+        triggered => {
+            PowerPageData.refresh();
+        }
+    }
+}

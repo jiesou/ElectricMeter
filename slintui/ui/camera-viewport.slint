@@ -1,0 +1,25 @@
+import { Palette, VerticalBox } from "std-widgets.slint";
+
+export component CameraViewport {
+    in-out property<image> frame;
+    in property<bool> running: true;
+    callback request-camera-frame();
+
+    timer := Timer {
+        interval: 16ms;
+        running: root.running;
+        triggered => { root.request-camera-frame(); }
+    }
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: Palette.alternate-background;
+    }
+    Image {
+        width: 100%;
+        height: 100%;
+        source: root.frame;
+        image-fit: contain;
+    }
+}

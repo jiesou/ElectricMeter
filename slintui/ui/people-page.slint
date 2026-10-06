@@ -1,0 +1,84 @@
+import { Palette } from "std-widgets.slint";
+import { CameraViewport } from "camera-viewport.slint";
+import { PageHeader } from "page-header.slint";
+import { PeoplePageData } from "people-page-data.slint";
+
+export component PeoplePage {
+    HorizontalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding: 0px;
+            spacing: 0px;
+
+            PageHeader {
+                title: "人数监控";
+            }
+
+            CameraViewport {
+                frame <=> PeoplePageData.camera-frame;
+                running: PeoplePageData.running;
+                request-camera-frame => { PeoplePageData.request-camera-frame(); }
+            }
+        }
+
+        Rectangle {
+            width: 340px;
+            background: #16161a;
+            border-color: Palette.border;
+            border-width: 1px;
+
+            VerticalLayout {
+                alignment: center;
+                padding: 26px;
+                spacing: 20px;
+
+                Text {
+                    text: "房内人数";
+                    color: Palette.foreground.with-alpha(75%);
+                    font-size: 24px;
+                    horizontal-alignment: center;
+                }
+
+                Rectangle {
+                    height: 220px;
+                    background: #8b7bf722;
+                    border-radius: 28px;
+                    border-width: 2px;
+                    border-color: #8b7bf766;
+
+                    Text {
+                        text: "" + PeoplePageData.person-count;
+                        color: #b9a8ff;
+                        font-size: 120px;
+                        font-weight: 700;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    Text {
+                        text: "进 " + PeoplePageData.in-count;
+                        color: Palette.foreground.with-alpha(85%);
+                        font-size: 24px;
+                        horizontal-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+
+                    Text {
+                        text: "出 " + PeoplePageData.out-count;
+                        color: Palette.foreground.with-alpha(85%);
+                        font-size: 24px;
+                        horizontal-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                }
+            }
+        }
+    }
+}

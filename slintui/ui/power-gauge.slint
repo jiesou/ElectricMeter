@@ -1,0 +1,103 @@
+import { Palette } from "std-widgets.slint";
+
+// 汽车时速表那样的功率表：底部开口 270° 的弧，指针扫到当前功率
+export component PowerGauge {
+    in property<float> value;
+    in property<float> max: 2000;
+
+    property<float> shown: root.value;
+    animate shown { duration: 600ms; easing: ease-out; }
+
+    property<float> ratio: clamp(root.shown / root.max, 0, 1);
+    property<float> size: min(self.width, self.height) / 1px;
+    property<float> cx: self.width / 1px / 2;
+    property<float> cy: self.height / 1px / 2;
+    property<float> r: root.size / 2 - 14;
+    property<angle> start: 135deg;
+    property<angle> needle: root.start + root.ratio * 270deg;
+    property<color> tone: Palette.accent-background;
+
+    // 灰色底弧
+    Path {
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        stroke: Palette.foreground.with-alpha(10%);
+        stroke-width: 12px;
+        stroke-line-cap: round;
+
+        MoveTo { x: root.cx + cos(root.start) * root.r; y: root.cy + sin(root.start) * root.r; }
+        ArcTo {
+            radius-x: root.r; radius-y: root.r; large-arc: true; sweep: true;
+            x: root.cx + cos(root.start + 270deg) * root.r; y: root.cy + sin(root.start + 270deg) * root.r;
+        }
+    }
+
+    // 刻度：每 10% 一根，整 50% 长一点
+    for i in 11 : Path {
+        property<angle> a: root.start + i * 27deg;
+        property<float> len: Math.mod(i, 5) == 0 ? 12 : 6;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        stroke: Palette.foreground.with-alpha(35%);
+        stroke-width: 2px;
+
+        MoveTo { x: root.cx + cos(a) * (root.r - 14); y: root.cy + sin(a) * (root.r - 14); }
+        LineTo { x: root.cx + cos(a) * (root.r - 14 - len); y: root.cy + sin(a) * (root.r - 14 - len); }
+    }
+
+    // 功率弧：外面一圈淡色当光晕
+    for glow in [22px, 12px] : Path {
+        visible: root.ratio > 0.002;
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        stroke: glow > 12px ? root.tone.with-alpha(22%) : root.tone;
+        stroke-width: glow;
+        stroke-line-cap: round;
+
+        MoveTo { x: root.cx + cos(root.start) * root.r; y: root.cy + sin(root.start) * root.r; }
+        ArcTo {
+            radius-x: root.r; radius-y: root.r; large-arc: root.ratio > 2 / 3; sweep: true;
+            x: root.cx + cos(root.needle) * root.r; y: root.cy + sin(root.needle) * root.r;
+        }
+    }
+
+    // 指针
+    Path {
+        viewbox-width: root.width / 1px;
+        viewbox-height: root.height / 1px;
+        stroke: Palette.foreground.with-alpha(90%);
+        stroke-width: 3px;
+        stroke-line-cap: round;
+
+        MoveTo { x: root.cx + cos(root.needle) * 10; y: root.cy + sin(root.needle) * 10; }
+        LineTo { x: root.cx + cos(root.needle) * (root.r - 24); y: root.cy + sin(root.needle) * (root.r - 24); }
+    }
+
+    Rectangle {
+        x: root.cx * 1px - 7px;
+        y: root.cy * 1px - 7px;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: root.tone;
+    }
+
+    Text {
+        y: root.cy * 1px + root.r * 0.32px;
+        width: root.width;
+        horizontal-alignment: center;
+        text: round(root.shown);
+        color: Palette.foreground;
+        font-size: root.size * 0.17px;
+        font-weight: 700;
+    }
+
+    Text {
+        y: root.cy * 1px + root.r * 0.32px + root.size * 0.21px;
+        width: root.width;
+        horizontal-alignment: center;
+        text: "W";
+        color: Palette.foreground.with-alpha(50%);
+        font-size: root.size * 0.07px;
+    }
+}

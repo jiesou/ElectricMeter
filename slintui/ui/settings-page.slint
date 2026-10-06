@@ -1,0 +1,111 @@
+import { Palette } from "std-widgets.slint";
+import { PageHeader } from "page-header.slint";
+import { SettingsPageData } from "settings-page-data.slint";
+
+component Field inherits Rectangle {
+    in property<string> label: "";
+    in property<string> value: "";
+    height: 56px;
+    background: transparent;
+
+    Text {
+        x: 24px;
+        vertical-alignment: center;
+        text: root.label;
+        color: Palette.foreground.with-alpha(70%);
+        font-size: 22px;
+    }
+
+    Text {
+        x: 240px;
+        vertical-alignment: center;
+        text: root.value;
+        color: Palette.foreground;
+        font-size: 22px;
+    }
+}
+
+component EditField inherits Rectangle {
+    in property<string> label: "";
+    in-out property<string> value: "";
+    callback save(string);
+
+    height: 68px;
+    background: transparent;
+
+    Text {
+        x: 24px;
+        vertical-alignment: center;
+        text: root.label;
+        color: Palette.foreground.with-alpha(70%);
+        font-size: 22px;
+    }
+
+    Rectangle {
+        x: 240px;
+        width: 420px;
+        height: 48px;
+        border-radius: 12px;
+        background: #ffffff12;
+
+        input := TextInput {
+            x: 14px;
+            width: parent.width - 28px;
+            height: parent.height;
+            vertical-alignment: center;
+            text <=> root.value;
+            color: white;
+            font-size: 22px;
+            single-line: true;
+        }
+    }
+
+    Rectangle {
+        x: 690px;
+        width: 120px;
+        height: 48px;
+        border-radius: 12px;
+        background: touch.has-hover ? #8b7bf7aa : #8b7bf766;
+
+        Text {
+            text: "保存";
+            color: white;
+            font-size: 22px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        touch := TouchArea {
+            clicked => { root.save(root.value); }
+        }
+    }
+}
+
+export component SettingsPage {
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        PageHeader {
+            title: "设置";
+        }
+
+        EditField {
+            label: "服务器地址";
+            value <=> SettingsPageData.server-ip;
+            save(ip) => { SettingsPageData.save(ip); }
+        }
+
+        Field { label: "检测模型"; value: SettingsPageData.model; }
+        Field { label: "视频源"; value: SettingsPageData.video; }
+        Field { label: "判定线"; value: SettingsPageData.line; }
+        Field { label: "图传地址"; value: SettingsPageData.udp; }
+
+        Text {
+            x: 24px;
+            text: SettingsPageData.hint;
+            color: #7ad37a;
+            font-size: 20px;
+        }
+    }
+}

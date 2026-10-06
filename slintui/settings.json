@@ -1,0 +1,18 @@
+{
+  "server_ip": "192.168.11.192",
+  "ws_url": "ws://192.168.11.192:8080/ws",
+  "api_url": "http://192.168.11.192:8080/api",
+  "image_feed_udp_url": "udp://192.168.11.192:8080",
+  "model": "models/yolo11n.onnx",
+  "video": "samples/vtest.avi",
+  "line": [
+    [
+      0.35,
+      0.1
+    ],
+    [
+      0.35,
+      0.95
+    ]
+  ]
+}
