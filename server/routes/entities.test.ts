@@ -32,6 +32,28 @@ test("不给 device：所有设备的实体", async () => {
   expect(all.map((e: any) => `${e.device_id}/${e.id}`)).toContain("esp-205/light");
 });
 
+test("实体 SSE 立即发送完整快照，之后每秒刷新", async () => {
+  await device("esp-206", [{ id: "light", name: "照明", type: "switch", state: false }]);
+  const response = await app.request("/api/entities/stream?device=esp-206");
+  expect(response.headers.get("content-type")).toContain("text/event-stream");
+
+  const reader = response.body!.getReader();
+  const read = async () => {
+    const { value } = await reader.read();
+    return JSON.parse(new TextDecoder().decode(value).slice(6).trim());
+  };
+
+  try {
+    expect(await read()).toMatchObject([{ id: "light", state: false }]);
+    await hub.handleMessage("esp-206", JSON.stringify({ type: "pub_entities", entities: [{ id: "light", state: true }] }));
+    const started = Date.now();
+    expect(await read()).toMatchObject([{ id: "light", state: true }]);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(900);
+  } finally {
+    await reader.cancel();
+  }
+});
+
 test("单个实体：未知的就 404", async () => {
   await device("esp-203", [{ id: "light", name: "照明", type: "switch", state: false }]);
   expect((await json(await app.request("/api/entities/esp-203/light"))).name).toBe("照明");

@@ -31,3 +31,18 @@ test("掉线：设备还在列，读数留着最后的值", async () => {
   hub.disconnect("esp-204");
   expect(await rowOf("esp-204")).toMatchObject({ online: false, power: 55, energy: 2.5 });
 });
+
+test("设备 SSE 立即发送与 REST 相同的快照", async () => {
+  await device("esp-206", [{ id: "light-meter", name: "照明功率", type: "meter", powerW: 55, energyKwh: 2.5 }]);
+  const response = await app.request("/api/devices/stream");
+  expect(response.headers.get("content-type")).toContain("text/event-stream");
+
+  const reader = response.body!.getReader();
+  try {
+    const { value } = await reader.read();
+    const rows = JSON.parse(new TextDecoder().decode(value).slice(6).trim());
+    expect(rows.find((d: any) => d.id === "esp-206")).toMatchObject({ online: true, power: 55, energy: 2.5 });
+  } finally {
+    await reader.cancel();
+  }
+});
