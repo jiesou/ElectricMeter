@@ -8,13 +8,13 @@
 - 我们要的是精简，易读可维护原型，不是工业化项目，我们要的是“它能跑起来演示”，而不是“能落地”
   - 想象一个初级程序员， **不看注释** 能不能轻松读懂代码。将这个设为标准
   - 不要堆砌文档和注释！让代码自己说话
-  - 不要造名词——Entities 和 Devices 就够了，observers、conns、live 这种稀奇古怪的名词只会让人读不懂。
-- **已规划** 的东西是长期目标，“已规划”不是 TODO list。用户没有敲定就不要主动去实现规划中的东西。
+  - 不要造名词——Entities 和 Devices 就够了，observers、conns、live 这种稀奇古怪的名词只会让人读不懂
+- **已规划** 的东西是长期目标，“已规划”不是 TODO list。用户没有敲定就不要主动去实现规划中的东西
 - 涉及到的全部时间，都直接使用 number 秒级时间戳，不使用任何特定时间格式，便于客户机单片机处理
 - 保护性代码几乎不需要，message.error 都可以少一点，“it just work”即可，确保代码实现极度可读、代码量少、简单高效。代码的“简单，不overengineered”非常非常重要
 - 不要 Overengineering！不要 Overengineering！不要 Overengineering！保持代码实现简短简单。如果可能，减少代码的更改
 - 这是个 Bun 项目，不要换成 Node
-- 中文注释
+- 注释用中文，只补充有助于理解的内容
 
 ## 项目是什么
 
@@ -22,16 +22,12 @@
 
 用 RS485 电能表 + 直流交流断路器 + ESP32 作为硬件下位机侧，云端信息平台统计用电量、研判用电行为并下发通断指令，覆盖平板 / 手机 / 电脑多端。
 
-### 明确不做
-
-- NILM、负荷辨识、电器指纹
-- 卫星通信、北斗
-
 ## 已实现
 
-> 这里只列项目结构，具体有什么直接读源码。不要太累赘
+> 这里只列项目结构，具体有什么直接读源码。 **不要赘述，不要累赘**
 
-> 结构实现细节，重点学习老项目 ~/Documents/dev/Projects/ElectricDriveSystem
+> 结构实现细节，重点学习 **老项目** `~/Documents/dev/Projects/ElectricDriveSystem`
+> 各种代码都可以直接从老代码copy过来
 
 - **shared/**
   - `types.ts` —— 数据模型与协议定义，用户明确定死
@@ -39,31 +35,53 @@
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
   - `core/hub.ts` —— 相当于老项目的 ClientManager：所有设备的内存表（启动从库里全读）+ `WSMessageHandler` 数组（谁关心谁注册）；读数报来就写回库
   - `routes/api.ts` —— API 挂载点 + `/health`
-  - `routes/devices.ts` / `routes/entities.ts` —— 一个区域一份路由，业务逻辑直接写在路由里
+  - `routes/devices.ts` / `routes/entities.ts` / `routes/rooms.ts` —— REST 快照与每秒一次的 SSE 全量快照
+  - `core/sse.ts` —— 通用快照 SSE
   - `core/db.ts`
   - `*.test.ts`
-  - `simulator/esp32.ts` —— 下位机模拟器（还在用旧字段）
+  - `simulator/esp32.ts` —— 下位机模拟器（实体增量上报 + 应用层心跳）
+  - `core/udp_camera.ts` —— UDP 图传接收：8 字节小端包头分片、重组 JPEG（照老项目 `UdpCameraServer.ts`）
+  - `routes/cv.ts` —— `/api/cv/stream` MJPEG 流，把最新一帧推给浏览器 / `<img>`
 - **cli/**（`em`，运行期零依赖）
   实体引用写作 `esp-301/light`。总览 / 实体清单 / 实体详情读已实现的 REST；远程通断、实时事件流的服务端接口
   属于「已规划」，CLI 侧还停在旧字段上（编译红）。全局 `--json` 输出原始 JSON
+- **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
+  - `main.py` —— 装配：推理流水线 + 三个页面的回调；`settings.json` 配模型 / 视频源 / 判定线 / 服务器地址
+  - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数）、`pipeline.py` + `sources.py`（推理线程与帧来源）
+  - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照
+  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `nav-bar.slint` / `page-header.slint` / `camera-viewport.slint`
+  - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
+  - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
+
+> 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN 与真摄像头**尚未上板实测**。
 
 ## 已规划
 
 > 实现后挪到上方，然后从这里删除，不留
 
 - `core/hub.ts` 的失联判定 —— 应该复刻老项目的经验
-- SSE —— 实时事件流，应该同时服务网页前端和 slint 界面前端
 - action 动作传递系统
 - **历史记录与统计分析** —— 怎么做见 `.agents/notes/decisions/历史记录与统计.md`
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
 - **前端页面** —— 桌面 / 平板 / 手机多端，数据接口已就绪（见「已实现」的 REST）
   客房管理 + 客房监控：一个 ESP32 管一个客房，一个客房两三路（照明 / 插座 / 空调）
-- **摄像头人数感知** —— 香橙派端侧 AI，人体框从判定线进=人进、从线出=人出，累计房间内人数
-  - 复用民宿**现有监控**，不额外布传感器，毫米波雷达评委看烂了
-  - 人数由香橙 Pi 产出，ESP32 只管电表和断路器，两者互不通信
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **硬件下位机落地** —— RS485 电能表 + 可控断路器 + ESP32 接真实回路替换掉模拟器，协议与服务器都不用改
-- **Rust 前端智能屏** —— 香橙派上用 Slint，对比 Qt
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）
 - **数字孪生** —— 房间 3D 数字孪生大屏（Three.js），灯、空调、插座随真实状态动作
 - **部署网络** —— 每房间一个 AP + 机房服务器机柜，服务跑在 **Ubuntu Server + Docker**
+
+## Slint UI 截图自查
+
+改完 UI 自己跑起来截图看一眼。GNOME Wayland 下截不了屏，让应用走 Xwayland，再按窗口标题截：
+
+```bash
+cd slintui && mkdir -p /tmp/agents
+( sleep 6; .venv/bin/python scripts/x11_shot.py 民宿用电管理 /tmp/agents/shot.png 10 ) &
+env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET WINIT_UNIX_BACKEND=x11 timeout 13 .venv/bin/python scripts/mock_power.py > /tmp/agents/app.log 2>&1
+wait
+```
+
+- 截出来用 read_image 看 `/tmp/agents/shot.png`
+- `scripts/mock_power.py` 是客房用电页的假数据（不同数量的实体），后面跟个数字可以跳过前几间房；要看别的页面就换成 `main.py`，并临时把 `app-window.slint` 里的 `current-tab` 改掉，截完改回来
+- 日志里 libEGL / MESA / ZINK 的报错是沙箱拿不到 GPU，可以不管
