@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import tab from "@bomb.sh/tab/commander";
 import pc from "picocolors";
 import type { Device, Entity } from "@em/shared";
 import { CliError, createApi, resolveHost, type Api } from "./api.ts";
@@ -95,6 +96,9 @@ prog
       });
     });
   });
+
+/** 生成补全：`em completion bash|zsh|fish|powershell` */
+tab(prog, { completionCommandName: "completion" });
 
 /** 裸 `em`（可带全局 flag，无子命令）= 总览；--help/--version 仍交给 commander */
 const argv = process.argv.slice(2);

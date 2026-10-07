@@ -11,6 +11,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@bomb.sh/tab": "^0.0.22",
     "@em/shared": "workspace:*",
     "cli-table3": "^0.6.5",
     "commander": "^15.0.0",
