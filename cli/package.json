@@ -3,11 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": { "em": "index.ts" },
+  "bin": {
+    "em": "index.ts"
+  },
   "scripts": {
-    "start": "bun run index.ts"
+    "check": "bunx tsc --noEmit -p tsconfig.json",
+    "test": "bun test"
   },
   "dependencies": {
-    "@em/shared": "workspace:*"
+    "@em/shared": "workspace:*",
+    "cli-table3": "^0.6.5",
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1"
   }
 }
