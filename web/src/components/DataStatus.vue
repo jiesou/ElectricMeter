@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { mock } from "../data";
 import type { RoomStatus } from "../types";
 
-const props = defineProps<{ status: RoomStatus; demo: boolean }>();
+const props = defineProps<{ status: RoomStatus }>();
 
 const text = computed(() => {
-  if (props.demo) return "演示数据";
+  if (mock.value) return "演示数据";
   return {
     loading: "正在加载",
     connecting: "正在连接实时更新",
@@ -16,7 +17,7 @@ const text = computed(() => {
 });
 
 const tone = computed(() => {
-  if (props.demo) return "tag--blue";
+  if (mock.value) return "tag--blue";
   if (props.status === "live") return "tag--green";
   if (props.status === "broken" || props.status === "unavailable") return "tag--warn";
   return "tag--gray";

@@ -4,13 +4,11 @@ import DataStatus from "../components/DataStatus.vue";
 import PageHeader from "../components/PageHeader.vue";
 import RoomCard from "../components/RoomCard.vue";
 import SummaryCard from "../components/SummaryCard.vue";
+import { rooms, status } from "../data";
 import { fmtPower } from "../format";
-import { readingsIncomplete, type Room, type RoomStatus } from "../types";
+import { readingsIncomplete } from "../types";
 
 const props = defineProps<{
-  rooms: Room[];
-  status: RoomStatus;
-  demo: boolean;
   query: string;
   filter: "all" | "online" | "offline";
 }>();
@@ -28,7 +26,7 @@ const filters = [
 
 // 按 id 自然顺序，读数更新不重排
 const sorted = computed(() =>
-  [...props.rooms].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })),
+  [...rooms.value].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })),
 );
 
 const matched = computed(() => {
@@ -41,9 +39,9 @@ const matched = computed(() => {
 });
 
 // 汇总始终统计全部客房，不随搜索筛选变化
-const onlineRooms = computed(() => props.rooms.filter((room) => room.online));
+const onlineRooms = computed(() => rooms.value.filter((room) => room.online));
 const totalPower = computed(() => onlineRooms.value.reduce((sum, room) => sum + room.power, 0));
-const incomplete = computed(() => props.rooms.some(readingsIncomplete));
+const incomplete = computed(() => rooms.value.some(readingsIncomplete));
 
 const clearFilters = () => {
   emit("update:query", "");
@@ -54,7 +52,7 @@ const clearFilters = () => {
 <template>
   <div class="page">
     <PageHeader title="客房用电" subtitle="查看各客房当前用电与设备状态">
-      <DataStatus :status="status" :demo="demo" />
+      <DataStatus :status="status" />
     </PageHeader>
 
     <div class="summary">

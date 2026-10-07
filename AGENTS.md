@@ -48,13 +48,14 @@
 - **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
   - `main.py` —— 装配：推理流水线 + 三个页面的回调；`settings.json` 配模型 / 视频源 / 判定线 / 服务器地址
   - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数）、`pipeline.py` + `sources.py`（推理线程与帧来源）
-  - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照
+  - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
   - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `nav-bar.slint` / `page-header.slint` / `camera-viewport.slint`
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
-  - `App.vue` —— 持有客房数组、数据连接状态、搜索与筛选（进出详情不丢），全站一份
-  - `api.ts` —— `GET /api/rooms` 起手 + `/api/rooms/stream` 的 SSE；`mock.ts` 六间房假数据，`VITE_DEMO=1` 不连后端也能演示
+  - `App.vue` —— 搜索与筛选（进出详情不丢）+ 全局 `Home` 键切 mock，全站一份
+  - `data.ts` —— 唯一数据入口：`rooms` / `status` / `mock`，按来源连 REST + SSE 或 mock；`api.ts` 负责 REST、EventSource 的创建和关闭
+  - `mock.ts` —— 六间房mock，每秒浮动，只被 `data.ts` 使用；切法与注入点见 `.agents/notes/decisions/Mock模式.md`
   - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房总览（汇总 / 搜索 / 筛选 / 房卡）、客房详情（电表读数 + 开关状态）、视频监控（`<img src="/api/cv/stream">` MJPEG，带重新加载与全屏）
   - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`；开发服务把 `/api` 代理到 `127.0.0.1:8080`（`VITE_API_TARGET` 可改），`bun run --cwd web dev` / `build`
 

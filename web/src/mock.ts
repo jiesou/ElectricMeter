@@ -1,8 +1,5 @@
 import type { Room } from "./types";
 
-/** 假数据演示时视频页用的本地示例标注图 */
-export const demoCameraImage = "/demo-camera.svg";
-
 const base: Room[] = [
   {
     id: "esp-301",
@@ -82,7 +79,10 @@ const base: Room[] = [
   },
 ];
 
-/** 读数每秒小幅度变化，便于看到页面刷新 */
+// 演示时 1 秒当 40 秒，电量两位小数才看得到在涨
+const DEMO_SPEED = 40;
+
+/** 读数每秒变化一次，让页面看起来在跑 */
 export function startMockRooms(onRooms: (rooms: Room[]) => void) {
   let step = 0;
 
@@ -91,10 +91,11 @@ export function startMockRooms(onRooms: (rooms: Room[]) => void) {
     onRooms(
       base.map((room) => {
         if (!room.online) return structuredClone(room);
-        const entities = room.entities.map((entity) => {
+        const entities = room.entities.map((entity, index) => {
           if (entity.type !== "meter" || entity.powerW === undefined) return { ...entity };
-          const powerW = Math.max(0, Math.round(entity.powerW + Math.sin(step / 4 + entity.id.length) * 40));
-          const energyKwh = (entity.energyKwh ?? 0) + powerW / 3600000;
+          const powerW = Math.max(0, Math.round(entity.powerW + Math.sin(step / 4 + index) * 40));
+          if (entity.energyKwh === undefined) return { ...entity, powerW };
+          const energyKwh = entity.energyKwh + (entity.powerW / 3600000) * DEMO_SPEED * step;
           return { ...entity, powerW, energyKwh };
         });
         const meters = entities.filter((entity) => entity.type === "meter");

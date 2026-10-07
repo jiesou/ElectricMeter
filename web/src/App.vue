@@ -1,48 +1,28 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-import { fetchRooms, openRoomStream } from "./api";
 import NavLinks from "./components/NavLinks.vue";
-import { startMockRooms } from "./mock";
-import type { Room, RoomStatus } from "./types";
+import { connect, disconnect, toggleMock } from "./data";
 
-const demo = import.meta.env.VITE_DEMO === "1";
-
-const rooms = ref<Room[]>([]);
-const status = ref<RoomStatus>("loading");
 // 搜索和筛选放在这里，进出详情页不丢失
 const query = ref("");
 const filter = ref<"all" | "online" | "offline">("all");
 
-let stop: (() => void) | undefined;
-let gotSnapshot = false;
-
-const setRooms = (next: Room[]) => {
-  rooms.value = next;
-  gotSnapshot = true;
+// 任何页面、任何焦点下按 Home 都切换 mock
+const onKey = (event: KeyboardEvent) => {
+  if (event.key !== "Home") return;
+  event.preventDefault();
+  toggleMock();
 };
 
-onMounted(async () => {
-  if (demo) {
-    status.value = "live";
-    stop = startMockRooms(setRooms);
-    return;
-  }
-
-  // 先取一次完整快照，再挂 SSE，避免旧结果覆盖新快照
-  try {
-    setRooms(await fetchRooms());
-    status.value = "connecting";
-  } catch {
-    status.value = "unavailable";
-  }
-
-  stop = openRoomStream(setRooms, (state) => {
-    if (state === "open") status.value = "live";
-    else status.value = gotSnapshot ? "broken" : "unavailable";
-  });
+onMounted(() => {
+  connect();
+  window.addEventListener("keydown", onKey);
 });
 
-onUnmounted(() => stop?.());
+onUnmounted(() => {
+  disconnect();
+  window.removeEventListener("keydown", onKey);
+});
 </script>
 
 <template>
@@ -54,9 +34,6 @@ onUnmounted(() => stop?.());
 
     <main class="main">
       <RouterView
-        :rooms="rooms"
-        :status="status"
-        :demo="demo"
         :query="query"
         :filter="filter"
         @update:query="query = $event"

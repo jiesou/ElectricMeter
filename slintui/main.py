@@ -87,8 +87,13 @@ def main():
             Room(**{**row, "entities": slint.ListModel([EntityCard(**e) for e in row["entities"]])})
             for row in rows
         ])
-        window.PowerPageData.server = power_stream.api_url
+        window.PowerPageData.server = "" if power_stream.mock else power_stream.api_url
         window.PowerPageData.updated = updated
+
+    @slint.callback(global_name="AppData")
+    def toggle_mock():
+        power_stream.toggle_mock()
+        refresh()
 
     @slint.callback(global_name="AppData")
     def stop_app():
@@ -96,6 +101,7 @@ def main():
 
     window.PeoplePageData.request_camera_frame = request_camera_frame
     window.PowerPageData.refresh = refresh
+    window.AppData.toggle_mock = toggle_mock
     window.AppData.stop_app = stop_app
     bind_settings_page(window)
 

@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from "vue";
 import PageHeader from "../components/PageHeader.vue";
-import { demoCameraImage } from "../mock";
 
-// App 传下来的客房数据这一页用不到
+// App 传下来的搜索与筛选这一页用不到
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps<{ demo: boolean }>();
-
-const src = ref(props.demo ? demoCameraImage : "/api/cv/stream");
+const src = ref("/api/cv/stream");
 const state = ref<"connecting" | "ready" | "failed">("connecting");
 const stage = ref<HTMLElement | null>(null);
 const image = ref<HTMLImageElement | null>(null);
@@ -18,7 +15,7 @@ const canFullscreen = document.fullscreenEnabled;
 // 换一次地址就是重建当前图像请求，旧请求随之中断
 const reload = () => {
   state.value = "connecting";
-  src.value = props.demo ? demoCameraImage : `/api/cv/stream?t=${Date.now()}`;
+  src.value = `/api/cv/stream?t=${Date.now()}`;
 };
 
 const fullscreen = () => stage.value?.requestFullscreen();
@@ -32,9 +29,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="page">
-    <PageHeader title="视频监控" subtitle="查看人体检测与跨线判定画面">
-      <span v-if="demo" class="tag tag--blue">示例画面</span>
-    </PageHeader>
+    <PageHeader title="视频监控" subtitle="查看人体检测与跨线判定画面" />
 
     <div class="camera">
       <div class="stage-col">

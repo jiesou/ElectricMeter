@@ -37,6 +37,7 @@ export global AppData {
     callback stop-app();
     callback swap-cameras();
     callback tab-changed(int);
+    callback toggle-mock();
 }
 
 export component AppWindow inherits Window {
@@ -46,36 +47,53 @@ export component AppWindow inherits Window {
     default-font-size: root.width < 801px ? 14px : 24px;
     init => {
         Palette.color-scheme = ColorScheme.dark;
+        keys.focus();
     }
 
-    VerticalLayout {
-        padding: 0px;
-        spacing: 0px;
+    // Home 键全窗口切换 mock，其余按键照常放行
+    keys := FocusScope {
+        width: 100%;
+        height: 100%;
 
-        Rectangle {
-            min-height: root.height - 58px;
-            clip: true;
-
-            if AppData.current-tab == 0 : PowerPage {
-                width: 100%;
-                height: 100%;
+        key-pressed(event) => {
+            if (event.text == Key.Home) {
+                AppData.toggle-mock();
+                return accept;
             }
-            if AppData.current-tab == 1 : PeoplePage {
-                width: 100%;
-                height: 100%;
-            }
-            if AppData.current-tab == 2 : SettingsPage {
-                width: 100%;
-                height: 100%;
-            }
+            return reject;
         }
 
-        NavBar {
-            height: 58px;
-            current-index <=> AppData.current-tab;
-            tabs: ["客房用电", "人数监控", "设置"];
-            tab-changed(index) => {
-                AppData.tab-changed(index);
+        VerticalLayout {
+            width: 100%;
+            height: 100%;
+            padding: 0px;
+            spacing: 0px;
+
+            Rectangle {
+                min-height: root.height - 58px;
+                clip: true;
+
+                if AppData.current-tab == 0 : PowerPage {
+                    width: 100%;
+                    height: 100%;
+                }
+                if AppData.current-tab == 1 : PeoplePage {
+                    width: 100%;
+                    height: 100%;
+                }
+                if AppData.current-tab == 2 : SettingsPage {
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+
+            NavBar {
+                height: 58px;
+                current-index <=> AppData.current-tab;
+                tabs: ["客房用电", "人数监控", "设置"];
+                tab-changed(index) => {
+                    AppData.tab-changed(index);
+                }
             }
         }
     }

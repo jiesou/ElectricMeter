@@ -4,13 +4,15 @@ import { useRoute } from "vue-router";
 import DataStatus from "../components/DataStatus.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SummaryCard from "../components/SummaryCard.vue";
+import { rooms, status } from "../data";
 import { entityName, fmtEnergy, fmtPower } from "../format";
-import { metersOf, switchesOf, type Room, type RoomStatus } from "../types";
+import { metersOf, switchesOf } from "../types";
 
-const props = defineProps<{ rooms: Room[]; status: RoomStatus; demo: boolean }>();
+// App 传下来的搜索与筛选这一页用不到
+defineOptions({ inheritAttrs: false });
 
 const route = useRoute();
-const room = computed(() => props.rooms.find((item) => item.id === route.params.device_id));
+const room = computed(() => rooms.value.find((item) => item.id === route.params.device_id));
 
 const meters = computed(() => (room.value ? metersOf(room.value) : []));
 const switches = computed(() => (room.value ? switchesOf(room.value) : []));
@@ -35,7 +37,7 @@ const stateTone = (state?: boolean) => (state ? "tag--green" : "tag--gray");
           {{ room.online ? "在线" : "离线" }}
         </span>
         <span class="device num">{{ room.id }}</span>
-        <DataStatus :status="status" :demo="demo" />
+        <DataStatus :status="status" />
       </PageHeader>
 
       <p v-if="!room.online" class="notice">设备离线，以下为最后上报数据</p>
