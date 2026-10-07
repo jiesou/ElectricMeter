@@ -42,9 +42,10 @@
   - `simulator/esp32.ts` —— 下位机模拟器（实体增量上报 + 应用层心跳）
   - `core/udp_camera.ts` —— UDP 图传接收：8 字节小端包头分片、重组 JPEG（照老项目 `UdpCameraServer.ts`）
   - `routes/cv.ts` —— `/api/cv/stream` MJPEG 流，把最新一帧推给浏览器 / `<img>`
-- **cli/**（`em`，运行期零依赖）
-  实体引用写作 `esp-301/light`。总览 / 实体清单 / 实体详情读已实现的 REST；远程通断、实时事件流的服务端接口
-  属于「已规划」，CLI 侧还停在旧字段上（编译红）。全局 `--json` 输出原始 JSON
+- **cli/**（`em`，commander + picocolors + cli-table3；选型依据见 `.agents/notes/research/`）
+  裸 `em` 客房总览（功率只合计在线房，口径同 web），`devices` / `entities [-d]` / `show <设备/实体>` 读已实现 REST，
+  `watch [-d]` 整屏刷新 SSE 快照流。实体引用写作 `esp-301/light`；全局 `--json` 输出原始 JSON（MCP 预留），
+  `--host` / `EM_HOST` 指服务器。通断、历史的服务端接口未实现，CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
 - **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
   - `main.py` —— 装配：推理流水线 + 三个页面的回调；`settings.json` 配模型 / 视频源 / 判定线 / 服务器地址
   - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数）、`pipeline.py` + `sources.py`（推理线程与帧来源）
