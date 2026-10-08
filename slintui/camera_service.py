@@ -68,6 +68,10 @@ class CameraService:
         self._swapped = False
         print(f"[CameraService] 可用摄像头: {[c[0] for c in self._cameras]}")
 
+    def devices(self):
+        """可用摄像头的设备路径，顺序与 get_frame 的编号一致"""
+        return [c[0] for c in self._cameras]
+
     def start(self):
         if self._running or not self._cameras:
             return

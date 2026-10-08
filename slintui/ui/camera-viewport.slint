@@ -1,9 +1,16 @@
-import { Palette, VerticalBox } from "std-widgets.slint";
+import { Palette } from "std-widgets.slint";
 
 export component CameraViewport {
     in-out property<image> frame;
     in property<bool> running: true;
     callback request-camera-frame();
+
+    // image-fit: contain 会留黑边，判定线得用画面自己的矩形换算，不然会飘
+    out property<length> draw-w: root.width / root.height > ratio ? root.height * ratio : root.width;
+    out property<length> draw-h: root.width / root.height > ratio ? root.height : root.width / ratio;
+    out property<length> view-x: (root.width - draw-w) / 2;
+    out property<length> view-y: (root.height - draw-h) / 2;
+    private property<float> ratio: frame.height > 0 ? frame.width / frame.height : 1.7778;
 
     timer := Timer {
         interval: 16ms;

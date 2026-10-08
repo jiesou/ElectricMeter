@@ -5,14 +5,10 @@
   "image_feed_udp_url": "udp://192.168.11.192:8080",
   "model": "models/yolo11n.onnx",
   "video": "samples/vtest.avi",
-  "line": [
-    [
-      0.35,
-      0.1
-    ],
-    [
-      0.35,
-      0.95
-    ]
+  "cameras": [
+    {
+      "device": "samples/vtest.avi",
+      "rooms": []
+    }
   ]
 }

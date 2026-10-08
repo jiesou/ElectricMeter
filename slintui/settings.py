@@ -6,6 +6,8 @@ from typing import Any
 DEFAULT_SERVER_IP = "192.168.11.192"
 PORT = 8080
 
+DEFAULT_LINE = [[0.5, 0.05], [0.5, 0.95]]  # 新加的判定线：画面正中、竖直，两端留一点边给把手
+
 
 class Settings:
     """Very small JSON-backed settings stored at PWD/settings.json."""

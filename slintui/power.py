@@ -62,6 +62,7 @@ class PowerStream:
             return
         with self.lock:
             self.rows = [{
+                "id": room["id"],  # 判定线绑客房用的就是这个 device_id
                 "name": room["name"],
                 "online": room["online"],
                 "power": f"{room['power']:.0f}",

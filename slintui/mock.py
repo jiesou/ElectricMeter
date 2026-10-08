@@ -12,6 +12,7 @@ def switch(name, state):
 def room(name, online, entities):
     meters = [e for e in entities if e["type"] == "meter"]
     return {
+        "id": "esp-" + name.split()[0],  # 跟模拟器的 device_id 对齐，判定线要挂在这上面
         "name": name,
         "online": online,
         "power": f"{sum(e['power'] for e in meters):.0f}",

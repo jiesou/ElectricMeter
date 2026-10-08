@@ -1,7 +1,122 @@
-import { Palette } from "std-widgets.slint";
+import { Palette, ScrollView } from "std-widgets.slint";
 import { CameraViewport } from "camera-viewport.slint";
 import { PageHeader } from "page-header.slint";
-import { PeoplePageData } from "people-page-data.slint";
+
+export struct RoomRow {
+    id: string,
+    name: string,
+    in-count: int,
+    out-count: int,
+    net: int,
+    lined: bool,
+    selected: bool,
+}
+
+export struct LineLabel {
+    name: string,
+    x: float,
+    y: float,
+    selected: bool,
+}
+
+export global PeoplePageData {
+    in-out property<image> camera-frame;
+    in-out property<bool> running: true;
+    in-out property<[RoomRow]> rooms;
+    in-out property<[LineLabel]> labels;
+    // 选中判定线的两端（归一化坐标），把手就画在这
+    in-out property<float> ax: 0;
+    in-out property<float> ay: 0;
+    in-out property<float> bx: 0;
+    in-out property<float> by: 0;
+    in-out property<int> selected: -1;
+    in-out property<bool> calibrating: false;
+    in-out property<bool> streaming: false;
+    in-out property<bool> can-swap: false;
+    in-out property<string> camera: "";
+
+    callback request-camera-frame();
+    callback press(float, float);
+    callback drag(float, float);
+    callback release();
+    callback toggle-stream();
+    callback swap-camera();
+    callback reset-counts();
+    callback open-calibration();
+    callback close-calibration();
+    callback room-clicked(string);
+    callback remove-line();
+}
+
+component RoomLine inherits Rectangle {
+    in property<RoomRow> info;
+    callback clicked();
+
+    height: 56px;
+    border-radius: 14px;
+    background: info.selected ? #8b7bf733 : transparent;
+
+    Text {
+        x: 14px;
+        width: 104px;
+        vertical-alignment: center;
+        text: info.name;
+        color: Palette.foreground;
+        font-size: 22px;
+        font-weight: 700;
+    }
+
+    Text {
+        x: 122px;
+        width: parent.width - 136px;
+        vertical-alignment: center;
+        text: info.lined
+              ? "进 " + info.in-count + "  出 " + info.out-count + "  净 " + info.net
+              : (PeoplePageData.calibrating ? "未标定 · 点一下加线" : "未标定");
+        color: info.lined ? Palette.foreground.with-alpha(80%) : Palette.foreground.with-alpha(45%);
+        font-size: 19px;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component ControlRow inherits Rectangle {
+    in property<string> label: "";
+    in property<string> value: "";
+    in property<bool> highlighted: false;
+    in property<bool> enabled: true;
+    callback clicked();
+
+    height: 56px;
+    border-radius: 16px;
+    background: touch.has-hover && enabled ? #ffffff26 : #ffffff12;
+    border-width: 1px;
+    border-color: highlighted ? #8b7bf7 : transparent;
+
+    Text {
+        x: 18px;
+        vertical-alignment: center;
+        text: root.label;
+        color: root.enabled ? Palette.foreground : Palette.foreground.with-alpha(35%);
+        font-size: 22px;
+    }
+
+    Text {
+        x: 18px;
+        width: parent.width - 36px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+        text: root.value;
+        color: root.enabled ? #b9a8ff : Palette.foreground.with-alpha(35%);
+        font-size: 20px;
+    }
+
+    touch := TouchArea {
+        clicked => { if (root.enabled) { root.clicked(); } }
+    }
+}
 
 export component PeoplePage {
     HorizontalLayout {
@@ -17,10 +132,70 @@ export component PeoplePage {
                 title: "人数监控";
             }
 
-            CameraViewport {
-                frame <=> PeoplePageData.camera-frame;
-                running: PeoplePageData.running;
-                request-camera-frame => { PeoplePageData.request-camera-frame(); }
+            Rectangle {
+                vertical-stretch: 1;
+
+                viewport := CameraViewport {
+                    width: 100%;
+                    height: 100%;
+                    frame <=> PeoplePageData.camera-frame;
+                    running: PeoplePageData.running;
+                    request-camera-frame => { PeoplePageData.request-camera-frame(); }
+                }
+
+                // 标定态：画面上叠把手和房号标签（线本身还是 OpenCV 画在帧里的）
+                if PeoplePageData.calibrating : Rectangle {
+                    width: 100%;
+                    height: 100%;
+
+                    for label in PeoplePageData.labels : Text {
+                        x: viewport.view-x + label.x * viewport.draw-w + 8px;
+                        y: viewport.view-y + label.y * viewport.draw-h - 14px;
+                        text: label.name;
+                        color: label.selected ? #ffffff : Palette.foreground.with-alpha(70%);
+                        font-size: 20px;
+                    }
+
+                    if PeoplePageData.selected >= 0 : Rectangle {
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 15px;
+                        background: #8b7bf7;
+                        border-width: 3px;
+                        border-color: #ffffff;
+                        x: viewport.view-x + PeoplePageData.ax * viewport.draw-w - self.width / 2;
+                        y: viewport.view-y + PeoplePageData.ay * viewport.draw-h - self.height / 2;
+                    }
+
+                    if PeoplePageData.selected >= 0 : Rectangle {
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 15px;
+                        background: #8b7bf7;
+                        border-width: 3px;
+                        border-color: #ffffff;
+                        x: viewport.view-x + PeoplePageData.bx * viewport.draw-w - self.width / 2;
+                        y: viewport.view-y + PeoplePageData.by * viewport.draw-h - self.height / 2;
+                    }
+
+                    touch := TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.down) {
+                                PeoplePageData.press((touch.mouse-x - viewport.view-x) / viewport.draw-w,
+                                                     (touch.mouse-y - viewport.view-y) / viewport.draw-h);
+                            }
+                            if (e.kind == PointerEventKind.up) {
+                                PeoplePageData.release();
+                            }
+                        }
+                        moved => {
+                            PeoplePageData.drag((touch.mouse-x - viewport.view-x) / viewport.draw-w,
+                                                (touch.mouse-y - viewport.view-y) / viewport.draw-h);
+                        }
+                    }
+                }
             }
         }
 
@@ -31,52 +206,59 @@ export component PeoplePage {
             border-width: 1px;
 
             VerticalLayout {
-                alignment: center;
-                padding: 26px;
-                spacing: 20px;
+                padding: 16px;
+                spacing: 10px;
 
-                Text {
-                    text: "房内人数";
-                    color: Palette.foreground.with-alpha(75%);
-                    font-size: 24px;
-                    horizontal-alignment: center;
-                }
+                ScrollView {
+                    vertical-stretch: 1;
 
-                Rectangle {
-                    height: 220px;
-                    background: #8b7bf722;
-                    border-radius: 28px;
-                    border-width: 2px;
-                    border-color: #8b7bf766;
+                    VerticalLayout {
+                        spacing: 10px;
 
-                    Text {
-                        text: "" + PeoplePageData.person-count;
-                        color: #b9a8ff;
-                        font-size: 120px;
-                        font-weight: 700;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                        for room in PeoplePageData.rooms : RoomLine {
+                            info: room;
+                            clicked => { PeoplePageData.room-clicked(room.id); }
+                        }
                     }
                 }
 
-                HorizontalLayout {
-                    spacing: 16px;
+                if PeoplePageData.calibrating : ControlRow {
+                    label: "删除这条线";
+                    enabled: PeoplePageData.selected >= 0;
+                    clicked => { PeoplePageData.remove-line(); }
+                }
 
-                    Text {
-                        text: "进 " + PeoplePageData.in-count;
-                        color: Palette.foreground.with-alpha(85%);
-                        font-size: 24px;
-                        horizontal-alignment: center;
-                        horizontal-stretch: 1;
-                    }
+                if PeoplePageData.calibrating : ControlRow {
+                    label: "完成";
+                    value: "保存并退出";
+                    highlighted: true;
+                    clicked => { PeoplePageData.close-calibration(); }
+                }
 
-                    Text {
-                        text: "出 " + PeoplePageData.out-count;
-                        color: Palette.foreground.with-alpha(85%);
-                        font-size: 24px;
-                        horizontal-alignment: center;
-                        horizontal-stretch: 1;
-                    }
+                if !PeoplePageData.calibrating : ControlRow {
+                    label: "标定判定线";
+                    value: "›";
+                    clicked => { PeoplePageData.open-calibration(); }
+                }
+
+                if !PeoplePageData.calibrating : ControlRow {
+                    label: "UDP 图传";
+                    value: PeoplePageData.streaming ? "开" : "关";
+                    highlighted: PeoplePageData.streaming;
+                    clicked => { PeoplePageData.toggle-stream(); }
+                }
+
+                if !PeoplePageData.calibrating : ControlRow {
+                    label: "换摄像头";
+                    value: PeoplePageData.can-swap ? "⇄" : "只有一路";
+                    enabled: PeoplePageData.can-swap;
+                    clicked => { PeoplePageData.swap-camera(); }
+                }
+
+                if !PeoplePageData.calibrating : ControlRow {
+                    label: "清零";
+                    value: "进 / 出";
+                    clicked => { PeoplePageData.reset-counts(); }
                 }
             }
         }
