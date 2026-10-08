@@ -48,7 +48,8 @@
       "label": "slintui",
       "type": "shell",
       "command": "cd slintui && .venv/bin/python main.py",
-      "presentation": { "group": "dev" }
+      "presentation": { "group": "dev" },
+      "problemMatcher": []
     },
     {
       "label": "db: push",
