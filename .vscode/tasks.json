@@ -8,6 +8,12 @@
       "presentation": { "group": "dev" }
     },
     {
+      "label": "dev: web",
+      "type": "shell",
+      "command": "cd web && bun run dev",
+      "presentation": { "group": "dev" }
+    },
+    {
       "label": "dev: sim",
       "type": "shell",
       "command": "cd server && bun run sim",
@@ -15,7 +21,7 @@
     },
     {
       "label": "dev",
-      "dependsOn": ["dev: server", "dev: sim"],
+      "dependsOn": ["dev: server", "dev: web"],
       "group": { "kind": "build", "isDefault": true }
     },
     {
@@ -37,6 +43,12 @@
       "type": "shell",
       "command": "cd cli && bun run index.ts",
       "presentation": { "group": "cli" }
+    },
+    {
+      "label": "slintui",
+      "type": "shell",
+      "command": "cd slintui && .venv/bin/python main.py",
+      "presentation": { "group": "dev" }
     },
     {
       "label": "db: push",
