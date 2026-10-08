@@ -1,0 +1,27 @@
+import { Palette } from "std-widgets.slint";
+import { Sizing } from "../sizing.slint";
+
+export component PageHeader {
+    in property<string> title: "";
+    height: Sizing.small * 125%;
+
+    VerticalLayout {
+        alignment: start;
+        padding: Sizing.small * 20%;
+        padding-left: Sizing.small * 50%;
+        spacing: Sizing.small * 10%;
+
+        Text {
+            text: root.title;
+            color: Palette.foreground;
+            font-weight: 700;
+        }
+
+        Rectangle {
+            height: Sizing.small * 8%;
+            width: Sizing.screen-width * 23%;
+            border-radius: self.height / 2;
+            background: @linear-gradient(90deg, Palette.accent-background 0%, Palette.foreground.with-alpha(50%) 70%, transparent 100%);
+        }
+    }
+}

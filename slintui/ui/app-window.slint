@@ -1,11 +1,12 @@
 import { Palette } from "std-widgets.slint";
-import { NavBar } from "nav-bar.slint";
-import { Sizing } from "sizing.slint";
-import { PageHeader } from "page-header.slint";
-import { PeoplePage, PeoplePageData } from "people-page.slint";
-import { PowerPage, PowerPageData } from "power-page.slint";
-import { SettingsPage } from "settings-page.slint";
+import { PeoplePageData } from "people-page-data.slint";
+import { PowerPageData } from "power-page-data.slint";
 import { SettingsPageData } from "settings-page-data.slint";
+import { NavBar } from "components/nav-bar.slint";
+import { PeoplePage } from "people-page.slint";
+import { PowerPage } from "power-page.slint";
+import { SettingsPage } from "settings-page.slint";
+import { Sizing } from "sizing.slint";
 
 export { PeoplePageData, PowerPageData, SettingsPageData }
 
@@ -13,15 +14,14 @@ component WindowButton inherits Rectangle {
     in property<string> label: "";
     callback clicked();
 
-    width: 104px;
-    height: 52px;
-    border-radius: 16px;
-    background: touch.has-hover ? #ffffff26 : #ffffff12;
+    width: Sizing.large;
+    height: Sizing.small;
+    border-radius: Sizing.small * 30%;
+    background: touch.has-hover ? Palette.foreground.with-alpha(15%) : Palette.foreground.with-alpha(7%);
 
     Text {
         text: root.label;
-        color: white;
-        font-size: 28px;
+        color: Palette.foreground;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -69,7 +69,8 @@ export component AppWindow inherits Window {
             spacing: 0px;
 
             Rectangle {
-                min-height: root.height - 58px;
+                width: 100%;
+                vertical-stretch: 1;
                 clip: true;
 
                 if AppData.current-tab == 0 : PowerPage {
@@ -87,7 +88,7 @@ export component AppWindow inherits Window {
             }
 
             NavBar {
-                height: 58px;
+                height: Sizing.small * 110%;
                 current-index <=> AppData.current-tab;
                 tabs: ["客房用电", "人数监控", "设置"];
                 tab-changed(index) => {
@@ -98,11 +99,13 @@ export component AppWindow inherits Window {
     }
 
     HorizontalLayout {
-        x: root.width - self.width - 20px;
-        y: 12px;
-        width: 336px;
-        height: 52px;
-        spacing: 12px;
+        x: 0;
+        y: Sizing.small * 25%;
+        width: 100%;
+        height: Sizing.small;
+        alignment: end;
+        padding-right: Sizing.small * 40%;
+        spacing: Sizing.small * 25%;
 
         WindowButton {
             label: "⇄";

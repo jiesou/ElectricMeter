@@ -86,18 +86,8 @@ export component PowerGauge {
         y: root.cy * 1px + root.r * 0.32px;
         width: root.width;
         horizontal-alignment: center;
-        text: round(root.shown);
+        text: round(root.shown) + " W";
         color: Palette.foreground;
-        font-size: root.size * 0.17px;
         font-weight: 700;
-    }
-
-    Text {
-        y: root.cy * 1px + root.r * 0.32px + root.size * 0.21px;
-        width: root.width;
-        horizontal-alignment: center;
-        text: "W";
-        color: Palette.foreground.with-alpha(50%);
-        font-size: root.size * 0.07px;
     }
 }

@@ -1,33 +1,11 @@
 import { Palette, ScrollView } from "std-widgets.slint";
-import { PageHeader } from "page-header.slint";
-import { PowerGauge } from "power-gauge.slint";
-
-export struct EntityCard {
-    name: string,
-    type: string,
-    state: bool,
-    power: float,
-    energy: string,
-}
-
-export struct Room {
-    id: string,
-    name: string,
-    online: bool,
-    power: string,
-    energy: string,
-    entities: [EntityCard],
-}
-
-export global PowerPageData {
-    in-out property<[Room]> rooms: [];
-    in-out property<string> server: "";
-    in-out property<string> updated: "";
-    callback refresh();
-}
+import { EntityCard, PowerPageData, Room } from "power-page-data.slint";
+import { PageHeader } from "components/page-header.slint";
+import { PowerGauge } from "components/power-gauge.slint";
+import { Sizing } from "sizing.slint";
 
 component Card inherits Rectangle {
-    border-radius: 20px;
+    border-radius: Sizing.small * 40%;
     background: Palette.background;
     border-width: 1px;
     border-color: Palette.border.with-alpha(60%);
@@ -37,13 +15,12 @@ component MeterCard inherits Card {
     in property<EntityCard> entity;
 
     VerticalLayout {
-        padding: 14px;
+        padding: Sizing.small * 25%;
         spacing: 0px;
 
         Text {
             text: root.entity.name;
             color: Palette.foreground.with-alpha(70%);
-            font-size: 18px;
         }
 
         PowerGauge {
@@ -53,7 +30,6 @@ component MeterCard inherits Card {
         Text {
             text: "累计 " + root.entity.energy + " kWh";
             color: Palette.foreground.with-alpha(55%);
-            font-size: 16px;
             horizontal-alignment: center;
         }
     }
@@ -63,32 +39,31 @@ component SwitchCard inherits Card {
     in property<EntityCard> entity;
 
     VerticalLayout {
-        padding: 14px;
-        spacing: 18px;
+        padding: Sizing.small * 25%;
+        spacing: Sizing.small * 35%;
 
         Text {
             text: root.entity.name;
             color: Palette.foreground.with-alpha(70%);
-            font-size: 18px;
         }
 
         Rectangle {
             vertical-stretch: 1;
 
             Rectangle {
-                width: 64px;
-                height: 116px;
-                border-radius: 32px;
+                width: Sizing.small * 125%;
+                height: Sizing.small * 225%;
+                border-radius: self.width / 2;
                 background: root.entity.state ? Palette.accent-background.with-alpha(25%) : Palette.foreground.with-alpha(8%);
                 border-width: 2px;
                 border-color: root.entity.state ? Palette.accent-background : Palette.foreground.with-alpha(20%);
                 animate background, border-color { duration: 200ms; }
 
                 Rectangle {
-                    y: root.entity.state ? 8px : parent.height - self.height - 8px;
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 24px;
+                    y: root.entity.state ? Sizing.small * 15% : parent.height - self.height - Sizing.small * 15%;
+                    width: Sizing.small * 95%;
+                    height: self.width;
+                    border-radius: self.width / 2;
                     background: root.entity.state ? Palette.accent-background : Palette.foreground.with-alpha(45%);
                     animate y, background { duration: 200ms; easing: ease-out; }
                 }
@@ -98,7 +73,6 @@ component SwitchCard inherits Card {
         Text {
             text: root.entity.state ? "通电" : "断开";
             color: root.entity.state ? Palette.accent-background : Palette.foreground.with-alpha(50%);
-            font-size: 22px;
             font-weight: 700;
             horizontal-alignment: center;
         }
@@ -107,30 +81,29 @@ component SwitchCard inherits Card {
 
 component RoomCard inherits Rectangle {
     in property<Room> room;
-    border-radius: 26px;
+    border-radius: Sizing.small * 50%;
     background: Palette.alternate-background;
     border-width: 1px;
     border-color: Palette.border.with-alpha(60%);
 
     VerticalLayout {
-        padding: 18px;
-        spacing: 14px;
+        padding: Sizing.small * 35%;
+        spacing: Sizing.small * 25%;
 
         HorizontalLayout {
-            spacing: 12px;
+            spacing: Sizing.small * 25%;
 
             Rectangle {
-                width: 12px;
-                height: 12px;
+                width: Sizing.small * 25%;
+                height: self.width;
                 y: (parent.height - self.height) / 2;
-                border-radius: 6px;
+                border-radius: self.width / 2;
                 background: root.room.online ? Palette.accent-background : Palette.foreground.with-alpha(30%);
             }
 
             Text {
                 text: root.room.name;
                 color: Palette.foreground;
-                font-size: 26px;
                 font-weight: 700;
                 vertical-alignment: center;
             }
@@ -138,7 +111,6 @@ component RoomCard inherits Rectangle {
             Text {
                 text: root.room.online ? "在线" : "离线";
                 color: Palette.foreground.with-alpha(50%);
-                font-size: 18px;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
             }
@@ -146,7 +118,6 @@ component RoomCard inherits Rectangle {
             Text {
                 text: root.room.power + " W";
                 color: Palette.foreground;
-                font-size: 26px;
                 font-weight: 700;
                 vertical-alignment: center;
             }
@@ -154,29 +125,26 @@ component RoomCard inherits Rectangle {
             Text {
                 text: "· 累计 " + root.room.energy + " kWh";
                 color: Palette.foreground.with-alpha(55%);
-                font-size: 18px;
                 vertical-alignment: center;
             }
         }
 
         if root.room.entities.length == 0 : Text {
-            text: "未申报回路";
+            text: "^_^";
             color: Palette.foreground.with-alpha(50%);
-            font-size: 20px;
         }
 
-        // 实体多了就横向滑
+        // 实体多了就横向滑：视口高度 = 实体卡 + 横向滚动条那一条，纵向没有可滚的量
         if root.room.entities.length > 0 : ScrollView {
-            height: 266px;
+            height: Sizing.screen-width * 20% + Sizing.small * 30%;
 
             HorizontalLayout {
                 alignment: start;
-                spacing: 14px;
-                padding-bottom: 16px;
+                spacing: Sizing.small * 25%;
 
                 for entity in root.room.entities : Rectangle {
-                    width: entity.type == "meter" ? 220px : 140px;
-                    height: 250px;
+                    width: entity.type == "meter" ? Sizing.screen-width * 17% : Sizing.screen-width * 11%;
+                    height: Sizing.screen-width * 20%;
 
                     if entity.type == "meter" : MeterCard { entity: entity; }
                     if entity.type == "switch" : SwitchCard { entity: entity; }
@@ -188,6 +156,8 @@ component RoomCard inherits Rectangle {
 
 export component PowerPage {
     VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding: 0px;
         spacing: 0px;
 
@@ -198,9 +168,9 @@ export component PowerPage {
         ScrollView {
             VerticalLayout {
                 alignment: start;
-                padding: 24px;
-                padding-top: 6px;
-                spacing: 20px;
+                padding: Sizing.small * 50%;
+                padding-top: Sizing.small * 10%;
+                spacing: Sizing.small * 40%;
 
                 for room in PowerPageData.rooms : RoomCard { room: room; }
             }

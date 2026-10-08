@@ -52,7 +52,7 @@
   - `calibration.py` —— 判定线标定：一台机位一组线、每条线绑一间客房（`device_id`）、命中与拖动、完成时落盘
   - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数：死区防抖、换线清状态，一台机位可挂多条）、`pipeline.py` + `sources.py`（推理线程与帧来源）
   - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
-  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `nav-bar.slint` / `page-header.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
+  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `sizing.slint`；`components/` 放非页面组件：`nav-bar.slint` / `page-header.slint` / `power-gauge.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）

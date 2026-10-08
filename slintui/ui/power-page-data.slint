@@ -1,0 +1,23 @@
+export struct EntityCard {
+    name: string,
+    type: string,
+    state: bool,
+    power: float,
+    energy: string,
+}
+
+export struct Room {
+    id: string,
+    name: string,
+    online: bool,
+    power: string,
+    energy: string,
+    entities: [EntityCard],
+}
+
+export global PowerPageData {
+    in-out property<[Room]> rooms: [];
+    in-out property<string> server: "";
+    in-out property<string> updated: "";
+    callback refresh();
+}

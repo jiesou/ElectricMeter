@@ -1,0 +1,45 @@
+export struct RoomRow {
+    id: string,
+    name: string,
+    in-count: int,
+    out-count: int,
+    net: int,
+    lined: bool,
+    selected: bool,
+}
+
+export struct LineLabel {
+    name: string,
+    x: float,
+    y: float,
+    selected: bool,
+}
+
+export global PeoplePageData {
+    in-out property<image> camera-frame;
+    in-out property<bool> running: true;
+    in-out property<[RoomRow]> rooms;
+    in-out property<[LineLabel]> labels;
+    // 选中判定线的两端（归一化坐标），把手就画在这
+    in-out property<float> ax: 0;
+    in-out property<float> ay: 0;
+    in-out property<float> bx: 0;
+    in-out property<float> by: 0;
+    in-out property<int> selected: -1;
+    in-out property<bool> calibrating: false;
+    in-out property<bool> streaming: false;
+    in-out property<bool> can-swap: false;
+    in-out property<string> camera: "";
+
+    callback request-camera-frame();
+    callback press(float, float);
+    callback drag(float, float);
+    callback release();
+    callback toggle-stream();
+    callback swap-camera();
+    callback reset-counts();
+    callback open-calibration();
+    callback close-calibration();
+    callback room-clicked(string);
+    callback remove-line();
+}

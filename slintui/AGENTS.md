@@ -1,5 +1,11 @@
 # AGENTS.md — slintui
 
+## 开发原则
+
+- 不写死任何颜色，统一用 [Palette](https://docs.slint.dev/latest/docs/slint/reference/std-widgets/globals/palette) 也可以用各种[混色合成方式](https://docs.slint.dev/latest/docs/slint/reference/property-types/colors-and-brushes/#color-methods)
+- 尽量不写死任何尺寸 sizing，统一使用 [Sizing](slintui/ui/sizing.slint)
+- 组件放 `ui/components/`，页面放 `ui/`
+
 ## 截图流程
 
 改完 UI 自己跑起来截图看一眼。GNOME Wayland 下截不了屏，让应用走 Xwayland，再按窗口标题截（命令都在本目录下跑）：

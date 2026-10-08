@@ -1,27 +1,26 @@
 import { Palette } from "std-widgets.slint";
-import { PageHeader } from "page-header.slint";
+import { PageHeader } from "components/page-header.slint";
 import { SettingsPageData } from "settings-page-data.slint";
+import { Sizing } from "sizing.slint";
 
 component Field inherits Rectangle {
     in property<string> label: "";
     in property<string> value: "";
-    height: 56px;
+    height: Sizing.small * 110%;
     background: transparent;
 
     Text {
-        x: 24px;
+        x: Sizing.small * 50%;
         vertical-alignment: center;
         text: root.label;
         color: Palette.foreground.with-alpha(70%);
-        font-size: 22px;
     }
 
     Text {
-        x: 240px;
+        x: Sizing.screen-width * 19%;
         vertical-alignment: center;
         text: root.value;
         color: Palette.foreground;
-        font-size: 22px;
     }
 }
 
@@ -30,47 +29,46 @@ component EditField inherits Rectangle {
     in-out property<string> value: "";
     callback save(string);
 
-    height: 68px;
+    height: Sizing.small * 130%;
     background: transparent;
 
     Text {
-        x: 24px;
+        x: Sizing.small * 50%;
         vertical-alignment: center;
         text: root.label;
         color: Palette.foreground.with-alpha(70%);
-        font-size: 22px;
     }
 
     Rectangle {
-        x: 240px;
-        width: 420px;
-        height: 48px;
-        border-radius: 12px;
-        background: #ffffff12;
+        x: Sizing.screen-width * 19%;
+        y: (root.height - self.height) / 2;
+        width: Sizing.screen-width * 33%;
+        height: Sizing.small * 95%;
+        border-radius: Sizing.small * 25%;
+        background: Palette.foreground.with-alpha(7%);
 
         input := TextInput {
-            x: 14px;
-            width: parent.width - 28px;
+            x: Sizing.small * 25%;
+            width: parent.width - Sizing.small * 50%;
             height: parent.height;
             vertical-alignment: center;
             text <=> root.value;
-            color: white;
-            font-size: 22px;
+            color: Palette.foreground;
             single-line: true;
         }
     }
 
     Rectangle {
-        x: 690px;
-        width: 120px;
-        height: 48px;
-        border-radius: 12px;
-        background: touch.has-hover ? #8b7bf7aa : #8b7bf766;
+        x: Sizing.screen-width * 54%;
+        y: (root.height - self.height) / 2;
+        width: Sizing.screen-width * 9.5%;
+        height: Sizing.small * 95%;
+        border-radius: Sizing.small * 25%;
+        background: Palette.accent-background.with-alpha(touch.has-hover ? 100% : 80%);
 
         Text {
             text: "保存";
-            color: white;
-            font-size: 22px;
+            color: Palette.accent-foreground;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -83,6 +81,8 @@ component EditField inherits Rectangle {
 
 export component SettingsPage {
     VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding: 0px;
         spacing: 0px;
 
@@ -102,10 +102,9 @@ export component SettingsPage {
         Field { label: "图传地址"; value: SettingsPageData.udp; }
 
         Text {
-            x: 24px;
+            x: Sizing.small * 50%;
             text: SettingsPageData.hint;
-            color: #7ad37a;
-            font-size: 20px;
+            color: Palette.accent-background;
         }
     }
 }

@@ -1,80 +1,38 @@
 import { Palette, ScrollView } from "std-widgets.slint";
-import { CameraViewport } from "camera-viewport.slint";
-import { PageHeader } from "page-header.slint";
-
-export struct RoomRow {
-    id: string,
-    name: string,
-    in-count: int,
-    out-count: int,
-    net: int,
-    lined: bool,
-    selected: bool,
-}
-
-export struct LineLabel {
-    name: string,
-    x: float,
-    y: float,
-    selected: bool,
-}
-
-export global PeoplePageData {
-    in-out property<image> camera-frame;
-    in-out property<bool> running: true;
-    in-out property<[RoomRow]> rooms;
-    in-out property<[LineLabel]> labels;
-    // 选中判定线的两端（归一化坐标），把手就画在这
-    in-out property<float> ax: 0;
-    in-out property<float> ay: 0;
-    in-out property<float> bx: 0;
-    in-out property<float> by: 0;
-    in-out property<int> selected: -1;
-    in-out property<bool> calibrating: false;
-    in-out property<bool> streaming: false;
-    in-out property<bool> can-swap: false;
-    in-out property<string> camera: "";
-
-    callback request-camera-frame();
-    callback press(float, float);
-    callback drag(float, float);
-    callback release();
-    callback toggle-stream();
-    callback swap-camera();
-    callback reset-counts();
-    callback open-calibration();
-    callback close-calibration();
-    callback room-clicked(string);
-    callback remove-line();
-}
+import { LineLabel, PeoplePageData, RoomRow } from "people-page-data.slint";
+import { CameraViewport } from "components/camera-viewport.slint";
+import { PageHeader } from "components/page-header.slint";
+import { Sizing } from "sizing.slint";
 
 component RoomLine inherits Rectangle {
     in property<RoomRow> info;
     callback clicked();
 
-    height: 56px;
-    border-radius: 14px;
-    background: info.selected ? #8b7bf733 : transparent;
+    height: Sizing.small * 110%;
+    border-radius: Sizing.small * 25%;
+    background: info.selected ? Palette.accent-background.with-alpha(20%) : transparent;
 
-    Text {
-        x: 14px;
-        width: 104px;
-        vertical-alignment: center;
-        text: info.name;
-        color: Palette.foreground;
-        font-size: 22px;
-        font-weight: 700;
-    }
+    HorizontalLayout {
+        padding-left: Sizing.small * 15%;
+        padding-right: Sizing.small * 15%;
+        spacing: Sizing.small * 15%;
 
-    Text {
-        x: 122px;
-        width: parent.width - 136px;
-        vertical-alignment: center;
-        text: info.lined
-              ? "进 " + info.in-count + "  出 " + info.out-count + "  净 " + info.net
-              : (PeoplePageData.calibrating ? "未标定 · 点一下加线" : "未标定");
-        color: info.lined ? Palette.foreground.with-alpha(80%) : Palette.foreground.with-alpha(45%);
-        font-size: 19px;
+        Text {
+            vertical-alignment: center;
+            text: info.name;
+            color: Palette.foreground;
+            font-weight: 700;
+        }
+
+        Text {
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+            overflow: elide; // 数字再长也省略，不能把面板撑出横向滚动
+            text: info.lined
+                  ? "进 " + info.in-count + "  出 " + info.out-count + "  净 " + info.net
+                  : (PeoplePageData.calibrating ? "未标定 · 点一下加线" : "未标定");
+            color: info.lined ? Palette.foreground.with-alpha(80%) : Palette.foreground.with-alpha(45%);
+        }
     }
 
     touch := TouchArea {
@@ -89,28 +47,29 @@ component ControlRow inherits Rectangle {
     in property<bool> enabled: true;
     callback clicked();
 
-    height: 56px;
-    border-radius: 16px;
-    background: touch.has-hover && enabled ? #ffffff26 : #ffffff12;
+    height: Sizing.small * 110%;
+    border-radius: Sizing.small * 30%;
+    background: touch.has-hover && enabled ? Palette.foreground.with-alpha(15%) : Palette.foreground.with-alpha(7%);
     border-width: 1px;
-    border-color: highlighted ? #8b7bf7 : transparent;
+    border-color: highlighted ? Palette.accent-background : transparent;
 
-    Text {
-        x: 18px;
-        vertical-alignment: center;
-        text: root.label;
-        color: root.enabled ? Palette.foreground : Palette.foreground.with-alpha(35%);
-        font-size: 22px;
-    }
+    HorizontalLayout {
+        padding-left: Sizing.small * 35%;
+        padding-right: Sizing.small * 35%;
 
-    Text {
-        x: 18px;
-        width: parent.width - 36px;
-        horizontal-alignment: right;
-        vertical-alignment: center;
-        text: root.value;
-        color: root.enabled ? #b9a8ff : Palette.foreground.with-alpha(35%);
-        font-size: 20px;
+        Text {
+            vertical-alignment: center;
+            text: root.label;
+            color: root.enabled ? Palette.foreground : Palette.foreground.with-alpha(35%);
+        }
+
+        Text {
+            horizontal-stretch: 1;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+            text: root.value;
+            color: root.enabled ? Palette.accent-background : Palette.foreground.with-alpha(35%);
+        }
     }
 
     touch := TouchArea {
@@ -120,11 +79,13 @@ component ControlRow inherits Rectangle {
 
 export component PeoplePage {
     HorizontalLayout {
+        width: 100%;
+        height: 100%;
         padding: 0px;
         spacing: 0px;
 
         VerticalLayout {
-            horizontal-stretch: 1;
+            width: Sizing.screen-width * 74%;
             padding: 0px;
             spacing: 0px;
 
@@ -152,28 +113,27 @@ export component PeoplePage {
                         x: viewport.view-x + label.x * viewport.draw-w + 8px;
                         y: viewport.view-y + label.y * viewport.draw-h - 14px;
                         text: label.name;
-                        color: label.selected ? #ffffff : Palette.foreground.with-alpha(70%);
-                        font-size: 20px;
+                        color: label.selected ? Palette.foreground : Palette.foreground.with-alpha(70%);
                     }
 
                     if PeoplePageData.selected >= 0 : Rectangle {
-                        width: 30px;
-                        height: 30px;
-                        border-radius: 15px;
-                        background: #8b7bf7;
+                        width: Sizing.small * 60%;
+                        height: self.width;
+                        border-radius: self.width / 2;
+                        background: Palette.accent-background;
                         border-width: 3px;
-                        border-color: #ffffff;
+                        border-color: Palette.accent-foreground;
                         x: viewport.view-x + PeoplePageData.ax * viewport.draw-w - self.width / 2;
                         y: viewport.view-y + PeoplePageData.ay * viewport.draw-h - self.height / 2;
                     }
 
                     if PeoplePageData.selected >= 0 : Rectangle {
-                        width: 30px;
-                        height: 30px;
-                        border-radius: 15px;
-                        background: #8b7bf7;
+                        width: Sizing.small * 60%;
+                        height: self.width;
+                        border-radius: self.width / 2;
+                        background: Palette.accent-background;
                         border-width: 3px;
-                        border-color: #ffffff;
+                        border-color: Palette.accent-foreground;
                         x: viewport.view-x + PeoplePageData.bx * viewport.draw-w - self.width / 2;
                         y: viewport.view-y + PeoplePageData.by * viewport.draw-h - self.height / 2;
                     }
@@ -200,20 +160,20 @@ export component PeoplePage {
         }
 
         Rectangle {
-            width: 340px;
-            background: #16161a;
+            width: Sizing.screen-width * 26%;
+            background: Palette.alternate-background;
             border-color: Palette.border;
             border-width: 1px;
 
             VerticalLayout {
-                padding: 16px;
-                spacing: 10px;
+                padding: Sizing.small * 30%;
+                spacing: Sizing.small * 20%;
 
                 ScrollView {
                     vertical-stretch: 1;
 
                     VerticalLayout {
-                        spacing: 10px;
+                        spacing: Sizing.small * 20%;
 
                         for room in PeoplePageData.rooms : RoomLine {
                             info: room;
