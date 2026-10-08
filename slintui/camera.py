@@ -140,7 +140,7 @@ class CameraPage:
         return lambda frame: frame_sender.send(frame, host, int(port))
 
     def _rows(self):
-        rooms, _ = self.power_stream.snapshot()
+        rooms = self.power_stream.snapshot()
         counters = {c.device_id: c for c in self.calibration.counters}
         rows = []
         for room in rooms:

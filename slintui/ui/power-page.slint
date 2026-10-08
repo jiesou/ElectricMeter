@@ -175,14 +175,5 @@ export component PowerPage {
                 for room in PowerPageData.rooms : RoomCard { room: room; }
             }
         }
-
-        Text {
-            height: 34px;
-            x: 24px;
-            vertical-alignment: center;
-            text: PowerPageData.server == "" ? PowerPageData.updated : PowerPageData.updated + "  ·  " + PowerPageData.server;
-            color: Palette.foreground.with-alpha(45%);
-            font-size: 16px;
-        }
     }
 }

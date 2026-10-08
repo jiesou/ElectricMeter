@@ -46,22 +46,17 @@ def main():
     camera_page.bind(window)
     bind_settings_page(window)
 
-    @slint.callback(global_name="PowerPageData")
     def refresh():
-        rows, updated = power_stream.snapshot()
+        rows = power_stream.snapshot()
         window.PowerPageData.rooms = slint.ListModel([
             Room(**{**row, "entities": slint.ListModel([EntityCard(**e) for e in row["entities"]])})
             for row in rows
         ])
-        window.PowerPageData.server = "" if power_stream.mock else power_stream.api_url
-        window.PowerPageData.updated = updated
 
-    @slint.callback(global_name="AppData")
     def toggle_mock():
         power_stream.toggle_mock()
         refresh()
 
-    @slint.callback(global_name="AppData")
     def stop_app():
         window.hide()
 

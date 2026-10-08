@@ -2,7 +2,6 @@
 
 import json
 import threading
-import time
 import urllib.request
 
 import mock
@@ -12,7 +11,6 @@ class PowerStream:
     def __init__(self, api_url):
         self.api_url = api_url.rstrip("/")
         self.rows = []
-        self.updated = "还没收到数据"
         self.mock = False
         self.stop_event = threading.Event()
         self.lock = threading.Lock()
@@ -32,13 +30,12 @@ class PowerStream:
 
     def snapshot(self):
         with self.lock:
-            return self.rows, self.updated
+            return self.rows
 
     def _run(self, stop):
         if self.mock:
             with self.lock:
                 self.rows = mock.ROWS
-                self.updated = "演示数据"
             return
 
         url = f"{self.api_url}/rooms/stream"
@@ -53,8 +50,6 @@ class PowerStream:
                         if line.startswith(b"data:"):
                             self._update(json.loads(line[5:].strip()))
             except Exception:
-                with self.lock:
-                    self.updated = f"连不上服务器 {self.api_url}"
                 stop.wait(1)
 
     def _update(self, data):
@@ -75,4 +70,3 @@ class PowerStream:
                     "energy": f"{entity.get('energyKwh') or 0:.2f}",
                 } for entity in room["entities"]],
             } for room in data]
-            self.updated = "最后更新 " + time.strftime("%H:%M:%S")
