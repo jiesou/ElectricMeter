@@ -5,7 +5,7 @@ export component CameraViewport {
     in property<bool> running: true;
     callback request-camera-frame();
 
-    // image-fit: contain 会留黑边，判定线得用画面自己的矩形换算，不然会飘
+    // 画面按自己的比例在视口里铺到最大（照老项目），不留黑边，也不裁掉画面
     out property<length> draw-w: root.width / root.height > ratio ? root.height * ratio : root.width;
     out property<length> draw-h: root.width / root.height > ratio ? root.height : root.width / ratio;
     out property<length> view-x: (root.width - draw-w) / 2;
@@ -18,15 +18,11 @@ export component CameraViewport {
         triggered => { root.request-camera-frame(); }
     }
 
-    Rectangle {
-        width: 100%;
-        height: 100%;
-        background: Palette.alternate-background;
-    }
     Image {
-        width: 100%;
-        height: 100%;
+        x: root.view-x;
+        y: root.view-y;
+        width: root.draw-w;
+        height: root.draw-h;
         source: root.frame;
-        image-fit: contain;
     }
 }
