@@ -65,7 +65,6 @@ class CameraService:
         self._running = False
         self.h, self.w = 720, 1280
         self._cameras = _scan_cameras()
-        self._swapped = False
         print(f"[CameraService] 可用摄像头: {[c[0] for c in self._cameras]}")
 
     def devices(self):
@@ -120,13 +119,7 @@ class CameraService:
     def get_frame(self, cam_id: int = 0):
         """获取指定摄像头的最新帧。
         """
-        if self._swapped:
-            cam_id = 1 - cam_id
         return self._frames.get(cam_id)
-
-    def swap_cameras(self):
-        """交换两个摄像头的逻辑映射。"""
-        self._swapped = not self._swapped
 
     def stop(self):
         self._running = False
