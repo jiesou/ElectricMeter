@@ -35,8 +35,8 @@ onBeforeUnmount(() => {
       <div class="stage-col">
         <div ref="stage" class="viewport">
           <img ref="image" :src="src" alt="摄像头画面" @load="state = 'ready'" @error="state = 'failed'" />
-          <p v-if="state === 'connecting'" class="overlay">正在连接画面</p>
-          <p v-else-if="state === 'failed'" class="overlay">画面加载失败</p>
+          <p v-if="state === 'connecting'" class="overlay">画面 UDP 图传</p>
+          <p v-else-if="state === 'failed'" class="overlay">画面 UDP 图传进行中</p>
         </div>
 
         <div class="actions">
@@ -44,12 +44,6 @@ onBeforeUnmount(() => {
           <button v-if="canFullscreen" class="btn" @click="fullscreen">全屏查看</button>
         </div>
       </div>
-
-      <aside class="card note">
-        <h2>画面说明</h2>
-        <p><i class="dot dot--green"></i>绿色框：检测到的人体</p>
-        <p><i class="dot dot--yellow"></i>判定线：进出方向判定参考</p>
-      </aside>
     </div>
   </div>
 </template>
