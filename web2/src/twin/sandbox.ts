@@ -1,6 +1,6 @@
 import {
-  BoxGeometry, BufferGeometry, CanvasTexture, CatmullRomCurve3, ConeGeometry, CylinderGeometry, DoubleSide,
-  EdgesGeometry, ExtrudeGeometry, Float32BufferAttribute, Group, IcosahedronGeometry, LineBasicMaterial, LineSegments,
+  BoxGeometry, CanvasTexture, CatmullRomCurve3, ConeGeometry, CylinderGeometry, DoubleSide,
+  EdgesGeometry, ExtrudeGeometry, Group, IcosahedronGeometry, LineBasicMaterial, LineSegments,
   Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, PointLight, RepeatWrapping, Shape, ShapeGeometry,
   SphereGeometry, SRGBColorSpace, TubeGeometry, Vector3,
   type Material,
@@ -161,17 +161,16 @@ export function buildSandbox(rooms: Room[], lights: number): Sandbox {
 function createMaterials() {
   const matte = (color: number) => new MeshStandardMaterial({ color, roughness: 0.92, metalness: 0 });
   return {
-    paper: matte(0xf3f0e9),
-    floor: matte(0xe8e1d4),
-    stone: matte(0xdad3c6),
-    board: matte(0xece8df),
-    soft: matte(0xfaf8f4),
-    shade: matte(0xd4cdc0),
-    wood: new MeshStandardMaterial({ color: 0x3a3129, roughness: 0.7 }),
-    water: new MeshStandardMaterial({ color: 0xa9c4c6, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.8 }),
+    paper: matte(0xded8cd),
+    floor: matte(0xf0e9dc),
+    stone: matte(0xbab0a1),
+    board: matte(0xd0c7b9),
+    soft: matte(0xf8f3eb),
+    shade: matte(0xb7ac9d),
+    wood: new MeshStandardMaterial({ color: 0x302a26, roughness: 0.7 }),
+    water: new MeshStandardMaterial({ color: 0x83b8bd, roughness: 0.04, metalness: 0.15, transparent: true, opacity: 0.86 }),
     dot: new MeshBasicMaterial({ color: 0xfbbf24 }),
-    line: new LineBasicMaterial({ color: 0x8c8477, transparent: true, opacity: 0.45 }),
-    ghost: new LineBasicMaterial({ color: 0xc9c1b4, transparent: true, opacity: 0.4 }),
+    line: new LineBasicMaterial({ color: 0x756b5f, transparent: true, opacity: 0.62 }),
   };
 }
 
@@ -190,12 +189,6 @@ function soft(w: number, h: number, d: number, material: Material, x: number, y:
   const mesh = new Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(radius, h / 2, w / 2, d / 2)), material);
   mesh.position.set(x, y + h / 2, z);
   return mesh;
-}
-
-function lines(points: number[][], material: Material) {
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(points.flat(), 3));
-  return new LineSegments(geometry, material);
 }
 
 /* ===== 客房 ===== */
@@ -237,10 +230,9 @@ function buildRow(rooms: Room[], x0: number, facing: -1 | 1, m: Materials, doors
   }
   row.add(box(length + 0.3, 0.2, 0.18, m.paper, x0 + length / 2, BASE + COL, zColumn, m));
 
-  // 两端马头墙，中间是揭掉的屋顶，只留虚线轮廓
+  // 两端马头墙，中间屋顶留空，保证室内始终可见
   row.add(buildGable(x0, zMid, m));
   row.add(buildGable(x0 + length, zMid, m));
-  row.add(buildGhostRoof(x0, x0 + length, zMid, m));
   return row;
 }
 
@@ -379,23 +371,6 @@ function buildGable(x: number, zMid: number, m: Materials) {
     if (i !== 2) g.add(box(0.36, 0.16, 0.18, m.paper, x, BASE + h + 0.1, z + (i < 2 ? -1 : 1) * (seg / 2 - 0.05), m));
   });
   return g;
-}
-
-/** 揭掉的坡屋顶：屋脊、檐口、椽子都只画细线 */
-function buildGhostRoof(x0: number, x1: number, zMid: number, m: Materials) {
-  const ridge = BASE + 3.3;
-  const eave = BASE + 2.45;
-  const z0 = zMid - SPAN / 2 - 0.4;
-  const z1 = zMid + SPAN / 2 + 0.4;
-  const points = [
-    [x0, ridge, zMid], [x1, ridge, zMid],
-    [x0, eave, z0], [x1, eave, z0],
-    [x0, eave, z1], [x1, eave, z1],
-  ];
-  for (let x = x0; x <= x1 + 0.01; x += 0.8) {
-    points.push([x, eave, z0], [x, ridge, zMid], [x, ridge, zMid], [x, eave, z1]);
-  }
-  return lines(points, m.ghost);
 }
 
 /** 天井：石板地、方池、一棵桂花，东西两道院墙开门 */
@@ -630,40 +605,52 @@ function buildLandscape(
   const houseHalfX = houseLength / 2 + 1;
   const houseHalfZ = ROW_Z + RD / 2 + 0.8;
   let planted = 0;
+  const treePositions: [number, number][] = [];
   for (let tries = 0; tries < 400 && planted < 16; tries++) {
     const x = west + 1 + random() * (east - west - 2);
     const z = -houseHalfZ + random() * (south - 1 + houseHalfZ);
-    const nearHouse = Math.abs(x) < houseHalfX && Math.abs(z) < houseHalfZ;
+    const size = random() < 0.65 ? 0.7 + random() * 0.5 : 0.9 + random() * 0.4;
+    const treeRadius = size * 1.15;
+    const nearHouse = Math.abs(x) < houseHalfX + treeRadius + 0.55 && Math.abs(z) < houseHalfZ + treeRadius + 0.55;
     const nearStream = Math.abs(z - streamZ(x)) < 1.6;
     const nearPath = Math.abs(x - bridgeX) < 1.2 || (Math.abs(z) < 1.4 && x < -houseHalfX + 1);
     const nearPanel = Math.abs(x - panel.x) < 2.5 && Math.abs(z - panel.z) < 1.8;
-    if (nearHouse || nearStream || nearPath || nearPanel) continue;
+    const nearTree = treePositions.some(([tx, tz]) => Math.hypot(x - tx, z - tz) < treeRadius + 1.1);
+    if (nearHouse || nearStream || nearPath || nearPanel || nearTree) continue;
     planted++;
-    g.add(random() < 0.65 ? ballTree(x, z, 0, 0.7 + random() * 0.5, m) : pineTree(x, z, 0, 0.9 + random() * 0.4, m));
+    treePositions.push([x, z]);
+    g.add(size < 0.9 ? ballTree(x, z, 0, size, m) : pineTree(x, z, 0, size, m));
   }
   return g;
 }
 
-/** 模型树：细杆顶一团多面球 */
+/** 模型树：细杆加三块错落的庭院树冠 */
 function ballTree(x: number, z: number, y: number, size: number, m: Materials) {
   const g = new Group();
-  g.add(new Mesh(new CylinderGeometry(0.04 * size, 0.06 * size, 1.1 * size, 6), m.shade).translateY(y + 0.55 * size));
-  const crown = new Mesh(new IcosahedronGeometry(0.75 * size, 1), m.soft);
-  crown.position.y = y + 1.45 * size;
+  g.add(new Mesh(new CylinderGeometry(0.045 * size, 0.07 * size, 1.45 * size, 7), m.shade).translateY(y + 0.72 * size));
+  const crown = new Mesh(new IcosahedronGeometry(0.67 * size, 1), m.soft);
+  crown.scale.set(1.12, 0.88, 1.02);
+  crown.position.y = y + 1.62 * size;
   g.add(crown);
-  const crown2 = new Mesh(new IcosahedronGeometry(0.5 * size, 1), m.soft);
-  crown2.position.set(0.45 * size, y + 1.1 * size, 0.2 * size);
+  const crown2 = new Mesh(new IcosahedronGeometry(0.43 * size, 1), m.soft);
+  crown2.scale.set(1.08, 0.86, 1);
+  crown2.position.set(0.48 * size, y + 1.33 * size, 0.12 * size);
   g.add(crown2);
+  const crown3 = new Mesh(new IcosahedronGeometry(0.38 * size, 1), m.soft);
+  crown3.scale.set(1.05, 0.8, 0.96);
+  crown3.position.set(-0.4 * size, y + 1.38 * size, -0.08 * size);
+  g.add(crown3);
   g.position.set(x, 0, z);
   return g;
 }
 
-/** 松：叠两层多棱锥 */
+/** 松：三层错开的矮树冠，避免尖锐的圣诞树形状 */
 function pineTree(x: number, z: number, y: number, size: number, m: Materials) {
   const g = new Group();
   g.add(new Mesh(new CylinderGeometry(0.04, 0.05, 0.5 * size, 6), m.shade).translateY(y + 0.25 * size));
-  g.add(new Mesh(new ConeGeometry(0.55 * size, 1.1 * size, 7), m.soft).translateY(y + 0.9 * size));
-  g.add(new Mesh(new ConeGeometry(0.4 * size, 0.9 * size, 7), m.soft).translateY(y + 1.4 * size));
+  g.add(new Mesh(new ConeGeometry(0.68 * size, 0.78 * size, 8), m.soft).translateY(y + 0.68 * size));
+  g.add(new Mesh(new ConeGeometry(0.5 * size, 0.66 * size, 8), m.soft).translateY(y + 1.08 * size));
+  g.add(new Mesh(new ConeGeometry(0.34 * size, 0.52 * size, 8), m.soft).translateY(y + 1.43 * size));
   g.position.set(x, 0, z);
   return g;
 }

@@ -1,5 +1,5 @@
 import {
-  Color, DirectionalLight, HalfFloatType, HemisphereLight, MathUtils, NeutralToneMapping, PCFShadowMap,
+  Color, DirectionalLight, Fog, HalfFloatType, HemisphereLight, MathUtils, NeutralToneMapping, PCFShadowMap,
   PerspectiveCamera, PMREMGenerator, Scene as ThreeScene, Spherical, Vector3, WebGLRenderer, WebGLRenderTarget,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -37,14 +37,15 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   renderer.toneMapping = NeutralToneMapping;
 
   const scene = new ThreeScene();
-  scene.background = new Color(0x14161a);
+  scene.background = new Color(0x101419);
+  scene.fog = new Fog(0x101419, 90, 170);
   const pmrem = new PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.35;
+  scene.environmentIntensity = 0.48;
 
   // 傍晚的光：暖色主光投影、天光补暗部，压得略暗一点，台灯和琥珀光才显得出来
-  scene.add(new HemisphereLight(0xe8ecff, 0x3b342c, 0.6));
-  const sun = new DirectionalLight(0xffe6c8, 1.8);
+  scene.add(new HemisphereLight(0xe8ecff, 0x302a25, 0.78));
+  const sun = new DirectionalLight(0xffe4c2, 2.15);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0004;
@@ -77,7 +78,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     // 竖屏时横向视角更窄，按窄的那个算
     const vertical = MathUtils.degToRad(FOV / 2);
     const horizontal = Math.atan(Math.tan(vertical) * camera.aspect);
-    const distance = (radius / Math.sin(Math.min(vertical, horizontal))) * 0.9;
+    const distance = (radius / Math.sin(Math.min(vertical, horizontal))) * 0.78;
     controls.target.set(0, 0, 0);
     camera.position.setFromSpherical(new Spherical(distance, HOME_POLAR, HOME_AZIMUTH));
     controls.minDistance = 10;

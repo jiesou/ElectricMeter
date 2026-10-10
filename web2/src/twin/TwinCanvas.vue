@@ -32,6 +32,12 @@ onUnmounted(() => scene?.dispose());
   transition: filter 0.6s;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .twin-canvas {
+    transition: none;
+  }
+}
+
 .stale {
   filter: grayscale(0.85) brightness(0.8);
 }
