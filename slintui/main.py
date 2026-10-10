@@ -6,7 +6,7 @@ os.environ["SLINT_SCALE_FACTOR"] = "1.5"  # 1920 / 1280
 
 import slint
 
-from camera import CameraPage
+from people import PeoplePage
 from power import PowerStream
 from settings import stored_settings
 
@@ -38,12 +38,10 @@ def main():
     power_stream = PowerStream(stored_settings.get("api_url", ""))
     power_stream.start()
 
-    camera_page = CameraPage(power_stream)
-    camera_page.start()
+    people_page = PeoplePage(power_stream)
 
     window = AppWindow()
-    window.PeoplePageData.running = True  # 摄像头视口那个 16ms 定时器
-    camera_page.bind(window)
+    people_page.bind(window)
     bind_settings_page(window)
 
     def refresh():
@@ -57,17 +55,26 @@ def main():
         power_stream.toggle_mock()
         refresh()
 
+    # tab 切换只管人数页起停：用电数据流便宜，常驻；推理贵，停在这页之外
+    def tab_changed(index):
+        if index == 1:
+            people_page.start()
+        else:
+            people_page.stop()
+
     def stop_app():
         window.hide()
 
-    window.PowerPageData.refresh = refresh
+    window.AppData.tab_changed = tab_changed
     window.AppData.toggle_mock = toggle_mock
     window.AppData.stop_app = stop_app
+    window.PowerPageData.refresh = refresh
 
+    tab_changed(window.AppData.current_tab)  # 初始页也走一遍（照老项目 activate_tab）
     window.show()
     window.run()
 
-    camera_page.stop()
+    people_page.stop()
     power_stream.stop()
 
 

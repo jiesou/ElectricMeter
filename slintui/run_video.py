@@ -8,11 +8,10 @@ import time
 
 import cv2
 
-from calibration import Calibration
+from people.calibration import Calibration
 from settings import DEFAULT_LINE, stored_settings
 from vision.counter import LineCounter
 from vision.detector import Detector
-from vision.pipeline import Pipeline
 from vision.tracker import ByteTracker
 
 
@@ -36,18 +35,27 @@ def main():
 
     cap = cv2.VideoCapture(a.video)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    pipeline = Pipeline(lambda: cap.read()[1],
-                        Detector(stored_settings.get("model", "models/yolo11n.onnx")),
-                        ByteTracker(), counters)
+    detector = Detector(stored_settings.get("model", "models/yolo11n.onnx"))
+    tracker = ByteTracker()
 
     writer = None
     rows = []
     i = 0
     t0 = time.time()
     while True:
-        frame = pipeline.step()
+        frame = cap.read()[1]
         if frame is None or (a.limit and i >= a.limit):
             break
+        tracks = tracker.update(detector.detect(frame))
+        t = detector.timing
+        print(f"[People] Timing (ms): preprocess={t['preprocess']:.2f} inference={t['inference']:.2f} "
+              f"postprocess={t['postprocess']:.2f} total={t['total']:.2f}")
+        for counter in counters:
+            counter.update(tracks, frame.shape)
+            counter.draw(frame)
+        for tr in tracks:
+            x1, y1, x2, y2 = (int(v) for v in tr.box)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         if a.out:
             if writer is None:
                 writer = cv2.VideoWriter(a.out, cv2.VideoWriter_fourcc(*"mp4v"), 10,

@@ -1,4 +1,5 @@
 import { Palette } from "std-widgets.slint";
+import { AppData } from "app-data.slint";
 import { PeoplePageData } from "people-page-data.slint";
 import { PowerPageData } from "power-page-data.slint";
 import { SettingsPageData } from "settings-page-data.slint";
@@ -8,7 +9,7 @@ import { PowerPage } from "power-page.slint";
 import { SettingsPage } from "settings-page.slint";
 import { Sizing } from "sizing.slint";
 
-export { PeoplePageData, PowerPageData, SettingsPageData }
+export { AppData, PeoplePageData, PowerPageData, SettingsPageData }
 
 component WindowButton inherits Rectangle {
     in property<string> label: "";
@@ -31,18 +32,10 @@ component WindowButton inherits Rectangle {
     }
 }
 
-export global AppData {
-    in-out property<int> current-tab: 1;
-    callback stop-app();
-    callback swap-cameras();
-    callback tab-changed(int);
-    callback toggle-mock();
-}
-
 export component AppWindow inherits Window {
     title: "民宿用电管理";
-    height: Sizing.screen-height;
-    width: Sizing.screen-width;
+    // height: Sizing.screen-height;
+    // width: Sizing.screen-width;
     default-font-size: root.width < 801px ? 14px : 24px;
     init => {
         Palette.color-scheme = ColorScheme.dark;

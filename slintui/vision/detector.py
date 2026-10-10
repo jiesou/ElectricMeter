@@ -7,6 +7,8 @@
 输入都是 letterbox 后的 640×640 RGB uint8，归一化由各自运行时按量化参数做（mean 0 / std 255）。
 """
 
+import time
+
 import cv2
 import numpy as np
 
@@ -51,13 +53,18 @@ class Detector:
 
     def detect(self, bgr):
         """返回 [(x1, y1, x2, y2, 分数)]，原图坐标"""
+        t0 = time.perf_counter()
         img, ratio, pad_x, pad_y = letterbox(bgr)
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).transpose(2, 0, 1)
+        t1 = time.perf_counter()
         outs = self._infer(rgb)
+        t2 = time.perf_counter()
         boxes, scores = self._flat(outs[0]) if len(outs) == 1 else self._dfl(outs)
-        if not len(boxes):
-            return []
-        idx = np.array(cv2.dnn.NMSBoxes(boxes, scores, self.conf, self.nms)).flatten()
+        if len(boxes):
+            idx = np.array(cv2.dnn.NMSBoxes(boxes, scores, self.conf, self.nms)).flatten()
+        else:
+            idx = []
+        t3 = time.perf_counter()
         h, w = bgr.shape[:2]
         dets = []
         for i in idx:
@@ -65,11 +72,17 @@ class Detector:
             x2, y2 = x + boxes[i, 2] / ratio, y + boxes[i, 3] / ratio
             dets.append((float(np.clip(x, 0, w)), float(np.clip(y, 0, h)),
                          float(np.clip(x2, 0, w)), float(np.clip(y2, 0, h)), float(scores[i])))
+        self.timing = {
+            "preprocess": (t1 - t0) * 1000,
+            "inference": (t2 - t1) * 1000,
+            "postprocess": (t3 - t2) * 1000,
+            "total": (t3 - t0) * 1000,
+        }
         return dets
 
     def _infer(self, rgb):
         if self.is_rknn:
-            return self.net.inference(inputs=[rgb])
+            return self.net.inference(inputs=[rgb.transpose(1, 2, 0)[None]])  # RKNN 吃 NHWC
         return self.net.run(None, {"images": rgb[None].astype(np.float32) / 255})
 
     def _flat(self, out):
