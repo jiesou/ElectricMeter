@@ -17,7 +17,7 @@ component Field inherits Rectangle {
     }
 
     Text {
-        x: Sizing.screen-width * 19%;
+        x: parent.width * 19%;
         vertical-alignment: center;
         text: root.value;
         color: Palette.foreground;
@@ -40,9 +40,9 @@ component EditField inherits Rectangle {
     }
 
     Rectangle {
-        x: Sizing.screen-width * 19%;
+        x: parent.width * 19%;
         y: (root.height - self.height) / 2;
-        width: Sizing.screen-width * 33%;
+        width: parent.width * 33%;
         height: Sizing.small * 95%;
         border-radius: Sizing.small * 25%;
         background: Palette.foreground.with-alpha(7%);
@@ -59,9 +59,9 @@ component EditField inherits Rectangle {
     }
 
     Rectangle {
-        x: Sizing.screen-width * 54%;
+        x: parent.width * 54%;
         y: (root.height - self.height) / 2;
-        width: Sizing.screen-width * 9.5%;
+        width: parent.width * 9.5%;
         height: Sizing.small * 95%;
         border-radius: Sizing.small * 25%;
         background: Palette.accent-background.with-alpha(touch.has-hover ? 100% : 80%);
