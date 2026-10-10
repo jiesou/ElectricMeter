@@ -47,12 +47,12 @@
   `watch [-d]` 整屏刷新 SSE 快照流。实体引用写作 `esp-301/light`；全局 `--json` 输出原始 JSON（MCP 预留），
   `--host` / `EM_HOST` 指服务器。通断、历史的服务端接口未实现，CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
 - **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
-  - `main.py` —— 只剩装配：起两个流，把窗口和页面绑起来；`settings.json` 配服务器地址 / 模型 / 视频源 / 图传地址 / `cameras[]` 判定线
-  - `camera.py` —— 人数监控页：一路画面 + 这台机位的判定线，四个控件（标定 / UDP 图传开关 / 换摄像头 / 清零）
-  - `calibration.py` —— 判定线标定：一台机位一组线、每条线绑一间客房（`device_id`）、命中与拖动、完成时落盘
-  - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数：死区防抖、换线清状态，一台机位可挂多条）、`pipeline.py` + `sources.py`（推理线程与帧来源）
+  - `main.py` —— 只剩装配：起两个流，把窗口和页面绑起来；tab 切换只起停人数页（推理贵），用电流常驻；`settings.json` 配服务器地址 / 模型 / 视频源 / 图传地址 / `cameras[]` 判定线
+  - `people/` —— 人数监控业务（业务一个包，照老板端样式）：`page.py` 页面装配 + UI 动作 + 两种帧来源（视频文件 / 摄像头，只留最新帧）、`viewport.py` 推理线程推完一帧接着推下一帧（无帧率目标），UI 16ms 定时拿最新帧画上最近的框独立刷新——框可以滞后，帧率必须高，timing log 也在这、`calibration.py` 判定线标定（一台机位一组线、每条线绑一间客房 `device_id`、命中与拖动、完成时落盘）
+  - `camera_service.py` —— 共享基建（照老项目）：扫 `/dev/video*` 按 USB 物理端口去重，每颗摄像头一个抓帧线程只留最新帧
+  - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数：死区防抖、换线清状态，一台机位可挂多条）
   - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
-  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `sizing.slint`；`components/` 放非页面组件：`nav-bar.slint` / `page-header.slint` / `power-gauge.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
+  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `sizing.slint` + `app-data.slint`（全局 AppData，`current-tab` 唯一真源，人数页的渲染定时器绑它随 tab 起停）；`components/` 放非页面组件：`nav-bar.slint` / `page-header.slint` / `power-gauge.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
@@ -62,7 +62,7 @@
   - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房总览（汇总 / 搜索 / 筛选 / 房卡）、客房详情（电表读数 + 开关状态）、视频监控（`<img src="/api/cv/stream">` MJPEG，带重新加载与全屏）
   - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`；开发服务把 `/api` 代理到 `127.0.0.1:8080`（`VITE_API_TARGET` 可改），`bun run --cwd web dev` / `build`
 
-> 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN 与真摄像头**尚未上板实测**。
+> 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN（RK-fork 去 DFL/后处理 + INT8 量化）与真摄像头**已在香橙派 5 Plus 上实测跑通**。
 > 判定线怎么标、跟客房怎么挂、人数怎么算见 `.agents/notes/decisions/人数监控与判定线标定.md`。
 > 网页第一版的范围与取舍见 `.agents/notes/decisions/网页前端第一版设计.md`。
 
