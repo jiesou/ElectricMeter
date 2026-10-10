@@ -208,7 +208,7 @@ cross build --release --target aarch64-unknown-linux-gnu
 ### 第 4~6 步
 
 4. IPC：先只发一条 `{"type":"hello"}` 验证管道通不通，**不要一次写完**
-5. 接 WS（按 [WS通信架构-ESP32与香橙派双device.md](./WS通信架构-ESP32与香橙派双device.md)）
+5. 接 WS（按 （架构已由 decisions 定，原调研文档已弃用删除））
 6. RKNN + 跨线计数 + `/dev/shm` 帧 —— 最后做，且在板子上做
 
 ---
