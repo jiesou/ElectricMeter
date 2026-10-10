@@ -89,8 +89,11 @@ class CameraService:
             cap = cv2.VideoCapture(dev_path, cv2.CAP_V4L2)
             if cap.isOpened():
                 if idx == 0:
-                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+                    # 这颗 USB 摄像头 YUYV 高分辨率只有 5fps，切 MJPG 才能跑满 30；
+                    # 用 720p：1080p 的解码和缩放会把推理拖到 9fps
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
                 print(f"[CameraService] 打开摄像头 {idx}: {dev_path}")
                 return cap
             cap.release()
