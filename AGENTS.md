@@ -37,6 +37,7 @@
   - `routes/api.ts` —— API 挂载点 + `/health`
   - `routes/devices.ts` / `routes/entities.ts` / `routes/rooms.ts` —— REST 快照与每秒一次的 SSE 全量快照
   - `core/sse.ts` —— 通用快照 SSE
+  - `core/history.ts` —— 每秒给内存里的读数拍一张快照写进 `EntityHistory`，只留最近 10 分钟；`GET /api/rooms/:device_id/history` 取窗口内的点（怎么做见 `.agents/notes/decisions/历史记录与统计.md`）
   - `core/db.ts`
   - `*.test.ts`
   - `simulator/esp32.ts` —— 下位机模拟器（实体增量上报 + 应用层心跳）
@@ -45,14 +46,14 @@
 - **cli/**（`em`，commander + picocolors + cli-table3；选型依据见 `.agents/notes/research/CLI框架选型.md`）
   裸 `em` 客房总览（功率只合计在线房，口径同 web），`devices` / `entities [-d]` / `show <设备/实体>` 读已实现 REST，
   `watch [-d]` 整屏刷新 SSE 快照流。实体引用写作 `esp-301/light`；全局 `--json` 输出原始 JSON（MCP 预留），
-  `--host` / `EM_HOST` 指服务器。通断、历史的服务端接口未实现，CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
+  `--host` / `EM_HOST` 指服务器。通断、历史的 CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
 - **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
   - `main.py` —— 只剩装配：起两个流，把窗口和页面绑起来；tab 切换只起停人数页（推理贵），用电流常驻；`settings.json` 配服务器地址 / 模型 / 视频源 / 图传地址 / `cameras[]` 判定线
   - `people/` —— 人数监控业务（业务一个包，照老板端样式）：`page.py` 页面装配 + UI 动作 + 两种帧来源（视频文件 / 摄像头，只留最新帧）、`viewport.py` 推理线程推完一帧接着推下一帧（无帧率目标），UI 16ms 定时拿最新帧画上最近的框独立刷新——框可以滞后，帧率必须高，timing log 也在这、`calibration.py` 判定线标定（一台机位一组线、每条线绑一间客房 `device_id`、命中与拖动、完成时落盘）
   - `camera_service.py` —— 共享基建（照老项目）：扫 `/dev/video*` 按 USB 物理端口去重，每颗摄像头一个抓帧线程只留最新帧
   - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数：死区防抖、换线清状态，一台机位可挂多条）
-  - `power.py` —— 客房用电页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
-  - `ui/` —— `app-window.slint`（底部 tab：客房用电 / 人数监控 / 设置）+ 三个页面 + `sizing.slint` + `app-data.slint`（全局 AppData，`current-tab` 唯一真源，人数页的渲染定时器绑它随 tab 起停）；`components/` 放非页面组件：`nav-bar.slint` / `page-header.slint` / `power-gauge.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
+  - `power.py` —— 客房管理页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
+  - `ui/` —— `app-window.slint`（底部 tab：客房管理 / 人数监控 / 设置）+ 三个页面 + `sizing.slint` + `app-data.slint`（全局 AppData，`current-tab` 唯一真源，人数页的渲染定时器绑它随 tab 起停）；`components/` 放非页面组件：`nav-bar.slint` / `page-header.slint` / `power-gauge.slint` / `camera-viewport.slint`（给出 contain 之后画面自己的矩形，判定线叠加层靠它换算）
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
@@ -72,7 +73,7 @@
 
 - `core/hub.ts` 的失联判定 —— 应该复刻老项目的经验
 - action 动作传递系统
-- **历史记录与统计分析** —— 怎么做见 `.agents/notes/decisions/历史记录与统计.md`
+- **统计分析** —— 实时功率曲线、退房页（用电分布与百分位）；怎么做见 `.agents/notes/decisions/历史记录与统计.md`
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **硬件下位机落地** —— RS485 电能表 + 可控断路器 + ESP32 接真实回路替换掉模拟器，协议与服务器都不用改
