@@ -10,7 +10,7 @@
 bun add commander picocolors cli-table3
 ```
 
-## 一、候选实测对比（全部在 Bun 1.4.2 下真实运行）
+## 候选实测对比（全部在 Bun 1.4.2 下真实运行）
 
 | 框架 | 版本（npm latest） | 依赖数 | Bun 实测 | 帮助/错误质量 | 维护状态 | 判定 |
 |---|---|---|---|---|---|---|
@@ -22,7 +22,7 @@ bun add commander picocolors cli-table3
 | clipanion | 4.0.0-rc.4 | 1（typanion） | — | — | **2024-09 后零发布，卡 RC 两年** | 排除（停滞） |
 | @oclif/core | 5.1.2（2026-09） | **18**，458KB | — | — | Salesforce 支持，活跃 | 排除：为 ~10 个子命令的只读 CLI 拉全家桶，严重过度工程 |
 
-## 二、必答问题逐条
+## 必答问题逐条
 
 **1. Bun 兼容性**：commander / citty / gunshi / cac 四个全部在 Bun 1.4.2 直接跑通，无任何 workaround。差异全在**默认 UX 质量**：commander 的错误提示（拼写建议、exit code）是唯一开箱即用就体面的。
 
@@ -34,7 +34,7 @@ bun add commander picocolors cli-table3
 
 **5. SSE 消费**：**Bun 1.4.2 无 `EventSource`（实测 `typeof EventSource === 'undefined'`）**。方案：`fetch(url)` + 读 `response.body`（ReadableStream）按 `\n\n` 分帧解析，~15 行；服务端本来就每秒推全量快照，解析器极薄。不引第三方 SSE 库。
 
-## 三、最终推荐 + 已验证最小示例（37 行，Bun 实跑通过）
+## 最终推荐 + 已验证最小示例（37 行，Bun 实跑通过）
 
 ```ts
 #!/usr/bin/env bun
@@ -117,7 +117,7 @@ error: unknown option '--devic=esp-301'   # exit 1
 冷启动（help）：commander 0.02s / citty 0.01s / gunshi 0.01s / cac 0.00s —— 均非问题
 ```
 
-## 四、落库版本清单
+## 落库版本清单
 
 | 包 | 版本 | 角色 |
 |---|---|---|
@@ -127,7 +127,7 @@ error: unknown option '--devic=esp-301'   # exit 1
 | （不加）@clack/prompts | 1.8.1 | 等「动作下发」需要 confirm 时再装，现在零交互场景 |
 | （不加）ora / ink / blessed | 9.4.1 / 8.0.0 / 0.1.81(死) | 不需要，见问题 3 |
 
-## 五、主要来源
+## 主要来源
 
 - npm registry（版本/依赖/发布日期/下载量）：registry.npmjs.org + api.npmjs.org，抓取于本次研究当日
 - GitHub API（stars/issues/pushed_at/releases）：tj/commander.js、unjs/citty、kazupon/gunshi、cacjs/cac、arcanis/clipanion、oclif/core、vadimdemedes/ink 等

@@ -6,7 +6,7 @@
 
 ---
 
-## 一、环节 × 平台 对照
+## 环节 × 平台 对照
 
 | 环节 | Windows | Linux | 判定 |
 |---|---|---|---|
@@ -23,7 +23,7 @@
 
 ---
 
-## 二、关键证据（原文）
+## 关键证据（原文）
 
 ### 官方 IDE
 - **MRS1 Linux 版曾"能编译、不能烧"**（openwch/ch32v003 #16，Debian 11）：
@@ -53,7 +53,7 @@
 
 ---
 
-## 三、VID:PID 对照
+## VID:PID 对照
 
 | VID:PID | 含义 |
 |---|---|
@@ -67,7 +67,7 @@ udev 规则要覆盖全部，尤其 `4348:55e0`（否则救砖时又因权限失
 
 ---
 
-## 四、Linux 避坑清单
+## Linux 避坑清单
 
 1. **一次买 2 颗 WCH-LinkE**（LinkE 救砖硬需求 + 保险）。
 2. **装依赖**：`libudev-devel libusb1-devel`（Fedora）。
@@ -82,7 +82,7 @@ udev 规则要覆盖全部，尤其 `4348:55e0`（否则救砖时又因权限失
 
 ---
 
-## 五、未查到 / 存疑
+## 未查到 / 存疑
 
 - 21ic BBS / 沁恒官方 BBS 全文（SPA/登录/反爬）。
 - 任何一篇"Linux vs Windows 系统性量化对比"文章。
@@ -92,7 +92,7 @@ udev 规则要覆盖全部，尤其 `4348:55e0`（否则救砖时又因权限失
 
 ---
 
-## 六、来源
+## 来源
 
 - 官方：`WCH-LinkUserManual.PDF`（V2.4 / V1.6）、`WCH-LinkE使用说明` V1.6、`WCHISPTool_CMD` 下载页、MounRiver 官方 API
 - GitHub：`openwch/ch32v003#16`、`ch32-rs/wlink`（+issue #88/#6）、`ch32-rs/wchisp`、`Community-PIO-CH32V/platform-ch32v#47`、`cjacker/wch-openocd#1`、`treideme/openocd-hacks#1`、`probe-rs#3023`、`cnlohr/ch32fun#662`、`cjacker/wlink-iap`

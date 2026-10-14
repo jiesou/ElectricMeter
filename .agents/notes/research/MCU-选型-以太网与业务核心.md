@@ -15,7 +15,7 @@
 
 ---
 
-## 一、结论
+## 结论
 
 **首选 CH32V307RCT6（LQFP64，64 脚）** —— 就是 VCT6 的「少引脚版」：同芯片家族、同 MRS / `wchisp` 工具链、同 Arduino 路径、同样内置 10M 以太网 PHY，只是引脚 100→64、封装 14×14→10×10mm，更好焊，且是标准在售 SKU。
 
@@ -29,7 +29,7 @@
 
 > **选型取向**：越经典 / 走量越大 → 越便宜、越好买。优先标准在售 SKU（V307 家族），避开偏门封装（如 CH32V317TCU6 QFN36、V317VCT6 立创 0 现货）。
 
-## 二、排序表（R2 按原表取 AND）
+## 排序表（R2 按原表取 AND）
 
 | 型号 | 封装 | R1 | R2 | R3 | R5 | 单价（分销快照） | 结论 |
 |---|---|---|---|---|---|---|---|
@@ -46,9 +46,9 @@
 | AT32F437VGT7 | LQFP100 | ✅ 按系列推断 | ✗ 同上 | ✅ | ✅ 外挂 PHY | ¥22 | 排除 |
 | BL618 | QFN56 | ◐ | ✗ 无 PIO；Arduino 只在 Windows 测过 | — | ◐ 速率资料冲突 | 未查 | 排除 |
 
-## 三、候选细节
+## 候选细节
 
-### 3.1 CH32V307 家族（首选；按引脚数从少到多：RCT6 < WCU6 < VCT6）
+### CH32V307 家族（首选；按引脚数从少到多：RCT6 < WCU6 < VCT6）
 
 三颗同芯片、同工具链，差别只在封装/引脚数。**都带以太网（千兆 MAC + 内置 10M PHY）**。
 
@@ -68,7 +68,7 @@
   - 官方独立勘误表未找到，只有 DS / RM 中的批号注释 [强]
   - 价格（立创自营快照 2026-10-10）：RCT6 ¥21.11(1+) / ¥16.41(30+)，现货 46；WCU6 ¥19.45(1+) / ¥14.75(30+)，现货 329；VCT6 ¥20.84(1+) / ¥16.31(30+)，现货 777
 
-### 3.2 RA6M5（备选）
+### RA6M5（备选）
 
 - **核心**：Cortex-M33 200MHz；2MB Flash / 512KB SRAM；SCI ×10 [强，DS R01DS0366EJ0150 Rev.1.50]
 - **温度**：BGA 为 -40~85℃，LQFP 为 -40~105℃。选 LQFP 版更易焊接、温度范围更宽 [强]
@@ -79,7 +79,7 @@
 - **价格**：Future 中国 ¥55.14/片（LQFP，库存 0，快照）；EK-RA6M5 $54.38 [中/弱]。BGA176 未查
 - **风险**：分销库存多为 0；Renesas 标注寿命至 2041 [中]
 
-### 3.3 其他
+### 其他
 
 - **CH32V317 家族**（与 V307 同系列、同 SDK）：内置 **10/100M PHY**（强于 V307 的 10M），千兆 MAC。封装 QFN36C4（TCU6，36 脚）/ QFN68（WCU6）/ LQFP100（VCT6）；QFN36 的引脚图里 **MDITP/MDITN/MDIRP/MDIRN + VDD_ETH/VDDK 是独立 PHY 脚，不占 GPIO** [强，DS V3.2/V3.5]。PIO 有 board（`genericCH32V317TCU6/WCU6/VCT6`）但 **frameworks 不含 arduino**；官方 Arduino core 无 V317 变体；ch32fun 也不支持 V317。→ **放弃 R2 的 Arduino 才考虑**。注意 V317VCT6 立创 0 现货需订货。
 - **CH32V208**（无线型：BLE 5.3 + 10M 以太网 MAC+PHY）：封装 QFN28(GBU6)/QFN48(CBU6)/LQFP64M(RBT6)/QFN68(WBU6)，引脚最少（28 脚）。**以太网只在 QFN68/LQFP64 引出**（ETH_RXP/RXN/TXP/TXN = PC6–PC9），QFN48/QFN28 无以太网 [强，DS V2.7]。PIO 有 board 但无 arduino；官方 core 不覆盖；ch32fun 有以太网例程 `examples_v20x/eth_sfhip` [强]。→ 放弃 Arduino 才考虑；R2 不过。
@@ -89,7 +89,7 @@
 - **AT32F407 / 437**：R1、R3、R5 过，R2 不过：无 Arduino，PIO 官方 GitHub 平台不在 registry [强]
 - **BL618**：RMII 外接 PHY，速率资料冲突（英文 DS 写 10/100M，中文 RM 写仅 100M）[强]；无 PIO；Arduino 核心只在 Windows 测过 [强]
 
-## 四、排除项
+## 排除项
 
 - **无以太网**：HC32F460、HPM6200 系列、RA6E2
 - **R2 不过（无 Arduino）**：HPM6364 / HPM6750（先楫）、HC32F4A0（华大）、N32G457 / N32H785（国民）、APM32F407（极海）、MM32F5277（灵动）、RA6M4 / RA6M3（瑞萨，PIO 与 Arduino 均无该板型）
@@ -97,7 +97,7 @@
 - **非 MCU**：CH395（外置以太网控制器）
 - **非国产且 PIO 无板**：Nuvoton M480
 
-## 五、待定事项
+## 待定事项
 
 1. **R2 取 AND 还是 OR？** 原表写的是「PlatformIO 有可用 platform/framework」且「有维护中的 Arduino core」，本文按 AND。若改成 OR，还会进入 CH32V317、CH32V407/467、CH32H417、CH565/569、AT32F407/437/457、BL618。
 2. **R6–R8 未定义。** 竞争指标里的 R7 单价、R8 算力没有阈值，本文只给了单价和资源，没有打分。
@@ -105,7 +105,7 @@
 4. **10M 是否够。** 控制类流量够用。若需要 100M，只能选 CH32V317（无 Arduino），或 V307 / RA6M5 外挂 PHY。
 5. **RCT6 以太网需 FAE 书面确认。** 数据手册引脚图/引脚表都显示 RCT6 有 PC6–PC9 = ETH_RXP/RXN/TXP/TXN，但 Table 2-1-1 的 Ethernet 行是跨列合并单元格，未逐型号列；建议下单前向 WCH 确认一次。
 
-## 六、未查项
+## 未查项
 
 - MRS 未装 IDE 实测；RA6M5 在 Fedora 上未实测
 - WCH、Renesas 的独立勘误表未找到 / 未查，只有数据手册注释
@@ -113,7 +113,7 @@
 - CH32V307 自制板的 Arduino 引脚适配未实测
 - CH32V317TCU6（QFN36）、CH32V208 各封装未逐一分销比价
 
-## 七、来源
+## 来源
 
 - WCH CH32V20x/30x 数据手册 V3.5 / V3.9（引脚图、引脚定义表、订购表）[强]；官方仓库 `openwch/ch32v307`、`openwch/arduino_core_ch32`、`openwch/ch32v407_ch32v467`、`openwch/ch32h417`、`openwch/ch569` [强]
 - 社区 `Community-PIO-CH32V/platform-ch32v`（`boards/genericCH32V307RCT6|WCU6|VCT6.json`、`builder/frameworks/arduino.py`）、`ArduinoCore-CH32V`、`ArduinoCore-CH32H4` [强，社区维护]

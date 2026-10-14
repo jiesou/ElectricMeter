@@ -6,9 +6,9 @@
 
 ---
 
-## 1. MQTT 3.1.1 / 5.0（OASIS Standard）
+## MQTT 3.1.1 / 5.0（OASIS Standard）
 
-### 1.1 完整报文类型表（MQTT 5.0 §2.1.2, Table 2-1 "MQTT Control Packet types"）
+### 完整报文类型表（MQTT 5.0 §2.1.2, Table 2-1 "MQTT Control Packet types"）
 
 | 名称 | 值 | 方向 | 语义 |
 |---|---|---|---|
@@ -31,7 +31,7 @@
 
 3.1.1 共 **14 种**（无 AUTH）；5.0 共 **15 种**。
 
-### 1.2 关键问题：服务器往客户端"推"数据用哪个报文？
+### 关键问题：服务器往客户端"推"数据用哪个报文？
 
 **就是 PUBLISH。** 规范原文（§3.3）："A PUBLISH packet is sent from a Client to a Server **or from a Server to a Client** to transport an Application Message."
 Table 2-1 的方向列直接写成 `Client to Server or Server to Client`。
@@ -39,7 +39,7 @@ Table 2-1 的方向列直接写成 `Client to Server or Server to Client`。
 **启发**：同一个词在两个方向上都是"运数据"，**方向不参与数据报文的名字**。
 MQTT 里根本不存在 `push` / `downlink` / `uplink` 这类词。
 
-### 1.3 PUBACK 到底是"请求的应答"还是"独立一类"？
+### PUBACK 到底是"请求的应答"还是"独立一类"？
 
 **是独立的一类**，而且它的语义被规范明确地与"业务处理完"切割开：
 
@@ -51,13 +51,13 @@ MQTT 里根本不存在 `push` / `downlink` / `uplink` 这类词。
 MQTT 5.0 §4.10 把请求/响应建立在 `Response Topic` + `Correlation Data` 两个 **PUBLISH 属性**上——
 **应答本身又是一条 PUBLISH**，不是新的报文类型。
 
-### 1.4 命名形态：动词/名词在前 + ACK 后缀（缩写）
+### 命名形态：动词/名词在前 + ACK 后缀（缩写）
 
 `PUBACK` / `CONNACK` / `SUBACK` / `UNSUBACK` / `PUBREC` / `PUBREL` / `PUBCOMP`——
 **全部是"词干缩写 + ACK 后缀"**，没有 `ACKPUB`、没有 `ACK_PUBLISH`、没有 `PUBLISHACK`。
 注意 `SUBACK` 不是 `SUBSCRIBEACK`：**压到 3+3 的视觉平行**（PUBACK / SUBACK / CONNACK 同长）。
 
-### 1.5 PINGREQ / PINGRESP 在命名体系里的位置
+### PINGREQ / PINGRESP 在命名体系里的位置
 
 - 它们是**正式的 12 / 13 号报文类型**，和其他报文一样平等，不是"特例另开一类"。
 - 固定头 flags 位是 `0010`，Remaining Length = 0，无 Variable Header、无 Payload。
@@ -66,7 +66,7 @@ MQTT 5.0 §4.10 把请求/响应建立在 `Response Topic` + `Correlation Data` 
 
 ---
 
-## 2. CoAP（RFC 7252）+ Observe（RFC 7641）
+## CoAP（RFC 7252）+ Observe（RFC 7641）
 
 CoAP **只有一种报文格式**，4 字节头：
 
@@ -102,15 +102,15 @@ CoAP **只有一种报文格式**，4 字节头：
 数据随后用**另一条** `2.05 Content` 单独发（Separate Response）。
 → **受理回执 = 承诺，数据 = 之后另发，是两条独立的东西，但它们用的是同一种报文格式。**
 
-- **心跳**：没有 PING 报文。发一个空 CON 即可；也可以用 RST 做廉价存活探测（§1.2 Reset 定义）。
+- **心跳**：没有 PING 报文。发一个空 CON 即可；也可以用 RST 做廉价存活探测（「关键问题」 Reset 定义）。
 - **服务器主动推**（RFC 7641）：叫 **Notification**，但它**就是 2.05 Content 报文本身**，
   只是多带一个 `Observe` option（序号 6）和递增序号。**CoAP 拒绝为"推送"新造报文类型。**
 
 ---
 
-## 3. AMQP
+## AMQP
 
-### 3.1 AMQP 0-9-1（`class.method` 点号命名）
+### AMQP 0-9-1（`class.method` 点号命名）
 
 规范 BNF 原文：
 
@@ -145,7 +145,7 @@ basic = C:QOS S:QOS-OK
 **命名规律**：① 请求+数据应答 = `Xxx` / `Xxx-Ok`（连字符）；② 受理回执 = **裸 `ACK` / `REJECT`**。
 0-9-1 **方向不对称是刻意的**：`publish` 只允许 C→S，`deliver` 只允许 S→C。
 
-### 3.2 AMQP 1.0（OASIS, Part 0 Overview 原文）
+### AMQP 1.0（OASIS, Part 0 Overview 原文）
 
 > "AMQP does not define a wire-level distinction between 'clients' and 'brokers',
 > **the protocol is symmetric**."
@@ -156,14 +156,14 @@ basic = C:QOS S:QOS-OK
 
 ---
 
-## 4. WebSocket（RFC 6455）
+## WebSocket（RFC 6455）
 
 - 帧类型由 **opcode 最高位**区分：
   - **控制帧 MSB=1**：0x8 Close、0x9 Ping、0xA Pong，0xB–0xF 预留
   - **数据帧 MSB=0**：0x1 Text、0x2 Binary，0x3–0x7 预留
 - §5.5 原文：控制帧 "are **not intended to carry data for the application** but instead for
   protocol-level signaling"；payload ≤ 125 字节，MUST NOT be fragmented，可插在分片消息中间。
-- §1.2 / §5.6：控制帧**永远不会交给应用层**（不触发 `onmessage`）。
+- 「关键问题」 / §5.6：控制帧**永远不会交给应用层**（不触发 `onmessage`）。
 - 命名是**反义成对 Ping / Pong**，不是 REQ / ACK。Pong 可以 unsolicited，当单向心跳。
 
 **对我们的意义**：WS 传输层已经有 ping/pong 了，它和应用层消息是两套东西。
@@ -172,7 +172,7 @@ basic = C:QOS S:QOS-OK
 
 ---
 
-## 5. STOMP 1.2（补充）
+## STOMP 1.2（补充）
 
 | 帧 | 方向 | 语义 |
 |---|---|---|
@@ -189,7 +189,7 @@ basic = C:QOS S:QOS-OK
   不用 SEND 之类的帧来发。
 - 注意 STOMP 的**不对称**：`SEND`/`MESSAGE`、`ACK`/`RECEIPT` 两组各自不同名。
 
-## 6. MQTT-SN 1.2（补充，MQTT 的受限场景亲兄弟）
+## MQTT-SN 1.2（补充，MQTT 的受限场景亲兄弟）
 
 §5.4 消息清单：ADVERTISE / SEARCHGW / GWINFO / CONNECT / CONNACK / WILLTOPICREQ / WILLTOPIC /
 WILLMSGREQ / WILLMSG / REGISTER / **REGACK** / PUBLISH / PUBACK / PUBREC / PUBREL / PUBCOMP /
@@ -201,7 +201,7 @@ WILLTOPICUPD / WILLMSGUPD / **WILLTOPICRESP / WILLMSGRESP**
 
 ---
 
-## 7. 回答五个问题
+## 回答五个问题
 
 ### Q1「受理回执」和「服务器主动推送」是两类消息还是一个？
 
@@ -268,7 +268,7 @@ STOMP 反而是最不对称的（SEND/MESSAGE、ACK/RECEIPT 两组各叫各的�
 
 ---
 
-## 8. 建议（针对"一条连接上设备只发上行、服务器只发下行"）
+## 建议（针对"一条连接上设备只发上行、服务器只发下行"）
 
 对四条基座 `PostMessage`(D→S) / `AckPostMessage`(S→D) / `GetMessage`(D→S) / `PushMessage`(S→D)：
 
