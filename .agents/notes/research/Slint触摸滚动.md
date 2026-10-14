@@ -75,7 +75,7 @@ fn accepts_pan_event(self: Pin<&Self>, event: &MouseEvent) -> bool {
 
 ### 根因 C：嵌套 ScrollView 必然失效（横向滚动就是这个）
 
-客房用电页是**外层竖向 ScrollView 里嵌每间房的横向 ScrollView**。这是 Slint 明说不支持的结构，实测外层一定会把拖动抢走。
+客房管理页是**外层竖向 ScrollView 里嵌每间房的横向 ScrollView**。这是 Slint 明说不支持的结构，实测外层一定会把拖动抢走。
 
 外层 Flickable 是祖先，`input_event_filter_before_children` 先跑：按下的瞬间就 `DelayForwarding(100ms)` 抓住，之后移动事件到不了内层。
 
@@ -124,7 +124,7 @@ X11 用的是 libinput 驱动（`40-libinput.conf`），winit 0.30.13 的 X11 �
 
 1. **三个 ScrollView 加 `mouse-drag-pan-enabled: true`** —— 已改。
    这一条正好绕开根因 A：单指虽被误判成「鼠标」，但开了 mouse-drag-pan 后「鼠标拖」也能滚。
-   **板子实测（真触摸注入 + 真实应用）**：默认 `sy = 12.2` → 开 pan `sy = 502.1`；真应用客房用电页能一路滑到底。
+   **板子实测（真触摸注入 + 真实应用）**：默认 `sy = 12.2` → 开 pan `sy = 502.1`；真应用客房管理页能一路滑到底。
 2. **横向卡片条改换行** —— 已改，用 1.18 的 `FlexboxLayout`（默认 wrap）。
    板子实测横向确实滚不动（滑动前后截图 md5 完全相同），换成换行后 304 的 12 个实体全部可见、横向滚动条消失。
 3. **板子上确认输入栈** —— 已查完，屏与 X 都正常（见 2b），**不需要改 udev / libinput / 换驱动**，也不用换 LinuxKMS 后端。

@@ -83,7 +83,7 @@ export component AppWindow inherits Window {
             NavBar {
                 height: Sizing.small * 110%;
                 current-index <=> AppData.current-tab;
-                tabs: ["客房用电", "人数监控", "设置"];
+                tabs: ["客房管理", "人数监控", "设置"];
                 tab-changed(index) => {
                     AppData.tab-changed(index);
                 }

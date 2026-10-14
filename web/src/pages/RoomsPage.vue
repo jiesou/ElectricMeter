@@ -51,7 +51,7 @@ const clearFilters = () => {
 
 <template>
   <div class="page">
-    <PageHeader title="客房用电" subtitle="查看各客房当前用电与设备状态">
+    <PageHeader title="客房管理" subtitle="查看各客房当前用电与设备状态">
       <DataStatus :status="status" />
     </PageHeader>
 

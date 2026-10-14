@@ -8,7 +8,7 @@ defineProps<{ variant: "side" | "bottom" }>();
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M4 20h16M6 20V10l6-5 6 5v10M10 20v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.8" />
       </svg>
-      <span>客房用电</span>
+      <span>客房管理</span>
     </RouterLink>
     <RouterLink class="link" to="/camera">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
