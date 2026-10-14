@@ -42,7 +42,7 @@
   - `simulator/esp32.ts` —— 下位机模拟器（实体增量上报 + 应用层心跳）
   - `core/udp_camera.ts` —— UDP 图传接收：8 字节小端包头分片、重组 JPEG（照老项目 `UdpCameraServer.ts`）
   - `routes/cv.ts` —— `/api/cv/stream` MJPEG 流，把最新一帧推给浏览器 / `<img>`
-- **cli/**（`em`，commander + picocolors + cli-table3；选型依据见 `.agents/notes/research/组件调研/`）
+- **cli/**（`em`，commander + picocolors + cli-table3；选型依据见 `.agents/notes/research/CLI框架选型.md`）
   裸 `em` 客房总览（功率只合计在线房，口径同 web），`devices` / `entities [-d]` / `show <设备/实体>` 读已实现 REST，
   `watch [-d]` 整屏刷新 SSE 快照流。实体引用写作 `esp-301/light`；全局 `--json` 输出原始 JSON（MCP 预留），
   `--host` / `EM_HOST` 指服务器。通断、历史的服务端接口未实现，CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
