@@ -17,6 +17,7 @@ from vision.detector import Detector
 from vision.tracker import ByteTracker
 
 from .calibration import Calibration
+from .reporter import PeopleReporter
 from .viewport import CameraViewport
 
 RoomRow = slint.loader.ui.people_page.RoomRow
@@ -47,6 +48,7 @@ class PeoplePage:
         self.power_stream = power_stream
         self.device, read_frame = self._source()
         self.calibration = Calibration(self.device)
+        self.reporter = PeopleReporter(stored_settings.get("device_id", "bigscreen"), self.calibration)
         self.sender = self._sender()
         self.streaming = self.sender is not None
         self.viewport = CameraViewport(read_frame,
@@ -58,9 +60,11 @@ class PeoplePage:
 
     def start(self):
         self.viewport.start()
+        self.reporter.start()
 
     def stop(self):
         self.viewport.stop()
+        self.reporter.stop()
 
     def bind(self, window):
         self.data = window.PeoplePageData

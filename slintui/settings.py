@@ -8,6 +8,9 @@ PORT = 8080
 
 DEFAULT_LINE = [[0.5, 0.05], [0.5, 0.95]]  # 新加的判定线：画面正中、竖直，两端留一点边给把手
 
+# 大屏上报用的身份：服务器只认报文里的 device_id，这台叫什么无所谓，但得有个名字
+DEFAULT_DEVICE_ID = "bigscreen"
+
 
 class Settings:
     """Very small JSON-backed settings stored at PWD/settings.json."""

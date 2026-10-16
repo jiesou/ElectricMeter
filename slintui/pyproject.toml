@@ -7,6 +7,7 @@ dependencies = [
     "opencv-python",
     "numpy",
     "onnxruntime",
+    "websockets",
     "frame-sender",
 ]
 
