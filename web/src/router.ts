@@ -1,16 +1,12 @@
-import { createRouter, createWebHashHistory } from "vue-router";
-import CameraPage from "./pages/CameraPage.vue";
-import RoomDetailPage from "./pages/RoomDetailPage.vue";
-import RoomsPage from "./pages/RoomsPage.vue";
+import { createRouter, createWebHistory } from "vue-router";
+import CameraView from "./views/CameraView.vue";
+import RoomsView from "./views/RoomsView.vue";
 
 export const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     { path: "/", redirect: "/rooms" },
-    { path: "/rooms", component: RoomsPage },
-    { path: "/rooms/:device_id", component: RoomDetailPage },
-    { path: "/camera", component: CameraPage },
-    { path: "/:pathMatch(.*)*", redirect: "/rooms" },
+    { path: "/rooms", component: RoomsView },
+    { path: "/camera", component: CameraView },
   ],
-  scrollBehavior: () => ({ top: 0 }),
 });

@@ -20,9 +20,9 @@ mock 模式只覆盖**客房数据**这一条链：Web 与香橙派大屏各有�
 
 ## Web
 
-`web/src/data.ts` 是唯一注入点：持有 `rooms`、`status`、`mock`，导出 `connect()`、`toggleMock()`、`disconnect()`。`connect()` 按 `mock` 选来源，真实走 `api.ts` 的 REST + SSE，mock 走 `mock.ts` 的 `startMockRooms`，两者写的是同一份 `rooms`。
+`web/src/data.ts` 是唯一注入点：持有 `rooms`、`status`、`mock`，导出 `connect()`、`toggleMock()`、`disconnect()`。`connect()` 按 `mock` 选来源，真实走 `api.ts` 的 REST + SSE，mock 走 `mock.ts`，两者写的是同一份 `rooms`。
 
-页面与组件从 `data.ts` 直接取，不再由 `App.vue` 用 props 传 `rooms`/`status`/`demo`；搜索与筛选仍留在 `App.vue` 用 props 传。`Home` 只在 `App.vue` 挂一次全局监听。
+页面与组件从 `data.ts` 直接取。`Home` 只在 `App.vue` 挂一次全局监听，任何页面、任何焦点都生效。
 
 `web/src/mock.ts` 保留六间房，每秒一帧，必须肉眼可见：
 
@@ -30,7 +30,7 @@ mock 模式只覆盖**客房数据**这一条链：Web 与香橙派大屏各有�
 - 电量按 `powerW / 3600000 * DEMO_SPEED` 累积，`DEMO_SPEED = 40`（演示时 1 秒当 40 秒），两位小数下每秒都在涨。
 - 离线房整间不动，保留最后读数。
 
-`CameraPage.vue` 固定请求 `/api/cv/stream`，不感知 mock。`VITE_DEMO` 与 `public/demo-camera.svg` 删除。
+视频页固定请求 `/api/cv/stream`，不感知 mock。
 
 ## 香橙派大屏
 
@@ -57,12 +57,11 @@ mock 模式只覆盖**客房数据**这一条链：Web 与香橙派大屏各有�
 
 | 侧 | 怎么验 |
 |---|---|
-| Web | `bun run --cwd web check`、`bun run --cwd web build` 通过；不启后端时按 `Home` 出现六间房；盯客房总览 5 秒，功率与累计电量都有肉眼可见变化；离线房不动；详情页、视频页按 `Home` 同样生效 |
+| Web | `bun run --cwd web check`、`bun run --cwd web build` 通过；不启后端时按 `Home` 出现六间房；盯客房页 5 秒，功率与累计电量都有肉眼可见变化；离线房不动；视频页按 `Home` 同样生效 |
 | 大屏 | X11 下跑 `main.py` 并发送 `Home`：客房管理页是四间固定数据、底部显示「演示数据」；再按一次回到真实来源；人数监控页不受影响 |
 
 ## 依据
 
 - [项目定义](../../../AGENTS.md)
-- [网页前端第一版设计](网页前端第一版设计.md)
-- [web/src/data.ts](../../../web/src/data.ts)、[web/src/mock.ts](../../../web/src/mock.ts)
+- [网页前端设计](网页前端设计.md)
 - [slintui/power.py](../../../slintui/power.py)、[slintui/mock.py](../../../slintui/mock.py)

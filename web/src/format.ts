@@ -1,7 +1,10 @@
-import type { Entity } from "@em/shared";
+/** 功率：1000 W 以下整数瓦，1000 W 起进位到千瓦、一位小数 */
+export function power(w?: number): string {
+  if (w === undefined) return "—";
+  return w < 1000 ? `${Math.round(w)} W` : `${(w / 1000).toFixed(1)} kW`;
+}
 
-/** 缺失读数显示 —，明确的 0 必须显示出来 */
-export const fmtPower = (w?: number) => (w === undefined ? "—" : w.toFixed(1).replace(/\.0$/, ""));
-export const fmtEnergy = (kwh?: number) => (kwh === undefined ? "—" : kwh.toFixed(2));
-
-export const entityName = (entity: Entity) => entity.name || entity.id;
+/** 电量：固定两位小数 */
+export function energy(kwh?: number): string {
+  return kwh === undefined ? "—" : `${kwh.toFixed(2)} kWh`;
+}

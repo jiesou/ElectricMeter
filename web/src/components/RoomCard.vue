@@ -1,110 +1,290 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { fmtEnergy, fmtPower } from "../format";
-import { metersOf, readingsIncomplete, switchesOf, type Room } from "../types";
+import type { Entity } from "@em/shared";
+import { computed, nextTick, ref } from "vue";
+import type { Room } from "../api.ts";
+import { rename, remove } from "../data.ts";
+import { energy } from "../format.ts";
+import MeterCard from "./MeterCard.vue";
+import PowerGauge from "./PowerGauge.vue";
+import RoomChart from "./RoomChart.vue";
+import SwitchCard from "./SwitchCard.vue";
 
 const props = defineProps<{ room: Room }>();
 
-const meters = computed(() => metersOf(props.room));
-const switches = computed(() => switchesOf(props.room));
+/** 房级总表取房里第一块电表；总闸是全房开关的聚合 */
+const master = computed(() =>
+  props.room.entities.find((e) => e.type === "meter"),
+);
+const switches = computed(() =>
+  props.room.entities.filter((e) => e.type === "switch"),
+);
+
+// 闸只画不接：点一下只切本地状态，刷新就回到接口的值
+const touched = ref<Record<string, boolean>>({});
+const isOn = (e: Entity) => touched.value[e.id] ?? e.state ?? false;
+const reported = (e: Entity) => e.state !== undefined || e.id in touched.value;
+
+function toggle(e: Entity) {
+  if (props.room.online) touched.value[e.id] = !isOn(e);
+}
+
+// 总闸：全房开关全为 on 才是 on，点一下全部切到相反值
+const masterOn = computed(
+  () => switches.value.length > 0 && switches.value.every(isOn),
+);
+
+function toggleMaster() {
+  if (!props.room.online || !switches.value.length) return;
+  const next = !masterOn.value;
+  for (const e of switches.value) touched.value[e.id] = next;
+}
+
+const editing = ref(false);
+const draft = ref("");
+const input = ref<HTMLInputElement | null>(null);
+
+function startEdit() {
+  draft.value = props.room.name;
+  editing.value = true;
+  void nextTick(() => input.value?.select());
+}
+
+async function submit() {
+  const name = draft.value.trim();
+  editing.value = false;
+  if (!name || name === props.room.name) return;
+  await rename(props.room.id, name).catch(() => {});
+}
+
+async function del() {
+  if (confirm(`删除客房「${props.room.name}」？`))
+    await remove(props.room.id).catch(() => {});
+}
 </script>
 
 <template>
-  <RouterLink class="card room" :to="`/rooms/${encodeURIComponent(room.id)}`">
-    <div class="row">
-      <h3 class="name">{{ room.name || room.id }}</h3>
-      <span class="tag" :class="room.online ? 'tag--green' : 'tag--gray'">
-        {{ room.online ? "在线" : "离线" }}
-      </span>
+  <article class="card room" :class="{ offline: !room.online }">
+    <div class="head">
+      <span class="dot" :class="{ off: !room.online }" />
+      <input
+        v-if="editing"
+        ref="input"
+        v-model="draft"
+        class="name-edit"
+        @keydown.enter="submit"
+        @keydown.esc="editing = false"
+        @blur="editing = false"
+      />
+      <h2 v-else class="name" title="点一下改房名" @click="startEdit">
+        {{ room.name }}
+      </h2>
+      <span class="state">{{ room.online ? "在线" : "离线" }}</span>
+      <button class="del" aria-label="删除客房" @click="del">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M4.5 7h15M9.5 7V4.8h5V7M6.8 7l.9 12.2h8.6L17.2 7M10.4 10.6v5.6M13.6 10.6v5.6"
+          />
+        </svg>
+      </button>
     </div>
 
-    <p class="label">{{ room.online ? "当前功率" : "最后功率" }}</p>
-    <p class="value num">
-      {{ meters.length ? fmtPower(room.power) : "—" }}<span class="unit">W</span>
-      <span v-if="meters.length && readingsIncomplete(room)" class="tag tag--warn warn">读数未齐</span>
-    </p>
-
-    <p class="label">{{ room.online ? "累计电量" : "最后累计电量" }}</p>
-    <p class="energy num">
-      {{ meters.length ? fmtEnergy(room.energy) : "—" }}<span class="unit">kWh</span>
-    </p>
-
-    <p v-if="!meters.length" class="none">未上报电表</p>
-
-    <div class="row foot">
-      <span class="meta">电表 {{ meters.length }} · 开关 {{ switches.length }}</span>
-      <span class="arrow" aria-hidden="true">→</span>
+    <div class="master">
+      <div v-if="master" class="master-meter">
+        <PowerGauge :power-w="master.powerW" thin />
+        <span class="energy num">累计 {{ energy(master.energyKwh) }}</span>
+      </div>
+      <button
+        class="track"
+        :class="{ on: masterOn }"
+        :disabled="!room.online || !switches.length"
+        aria-label="整房总闸"
+        @click="toggleMaster"
+      >
+        <span class="knob" />
+      </button>
     </div>
-  </RouterLink>
+
+    <RoomChart v-if="master" :room="room" />
+
+    <div v-if="room.entities.length" class="entities">
+      <MeterCard
+        v-for="e in room.entities.filter((x) => x.type === 'meter')"
+        :key="e.id"
+        :entity="e"
+      />
+      <SwitchCard
+        v-for="e in switches"
+        :key="e.id"
+        :entity="e"
+        :online="room.online"
+        :on="isOn(e)"
+        :reported="reported(e)"
+        @toggle="toggle(e)"
+      />
+    </div>
+    <p v-else class="empty">这间房还没有实体上报</p>
+  </article>
 </template>
 
 <style scoped>
 .room {
-  display: block;
-  min-height: 200px;
-  transition: border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
 }
 
-.room:hover {
-  border-color: var(--primary);
+.room.offline {
+  opacity: 0.72;
 }
 
-.row {
+.head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
+.dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.dot.off {
+  background: var(--muted);
+  opacity: 0.5;
+}
+
 .name {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 700;
   overflow-wrap: anywhere;
+  cursor: text;
 }
 
-.label {
-  margin-top: 12px;
-  color: var(--muted);
+.name-edit {
+  min-width: 0;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--gray-soft);
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+}
+
+.state {
   font-size: 14px;
+  color: var(--muted);
 }
 
-.value {
-  font-size: 32px;
-  font-weight: 600;
-  line-height: 1.2;
+.del {
+  display: flex;
+  margin-left: auto;
+  padding: 4px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 8px;
+}
+
+.del svg {
+  width: 18px;
+  height: 18px;
+}
+
+.del:hover {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+/* 房级行：左总表、右总闸，高 140px，在曲线正上方 */
+.master {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 140px;
+}
+
+.master-meter {
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .energy {
-  font-size: 16px;
-}
-
-.unit {
-  margin-left: 6px;
-  font-size: 16px;
-  font-weight: 400;
+  font-size: 13px;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.warn {
-  margin-left: 12px;
-  vertical-align: middle;
+/* 竖总闸，比 Entity 的闸大一号 */
+.track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 88px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--border);
+  transition: background 200ms ease-out;
 }
 
-.none {
-  margin-top: 8px;
-  color: var(--muted);
+.track .knob {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+  transition: transform 200ms ease-out;
+}
+
+.track.on {
+  background: var(--green);
+}
+
+.track.on .knob {
+  transform: translateY(-32px);
+}
+
+.entities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* 电表仍是宽度自适应的方格小卡，最小 180px */
+.entities :deep(.meter) {
+  flex: 1 1 180px;
+  min-width: 180px;
+}
+
+.empty {
   font-size: 14px;
-}
-
-.foot {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
   color: var(--muted);
-  font-size: 14px;
 }
 
-.arrow {
-  color: var(--primary);
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .track .knob {
+    transition: none;
+  }
 }
 </style>

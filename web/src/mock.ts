@@ -1,115 +1,121 @@
-import type { Room } from "./types";
+import type { Entity } from "@em/shared";
+import type { Room } from "./api.ts";
 
-const base: Room[] = [
-  {
-    id: "esp-301",
-    name: "301 房",
-    online: true,
-    power: 955,
-    energy: 66.7,
-    entities: [
-      { id: "light-meter", device_id: "esp-301", name: "照明", type: "meter", powerW: 55, energyKwh: 12.4 },
-      { id: "socket-meter", device_id: "esp-301", name: "插座", type: "meter", powerW: 0, energyKwh: 20.1 },
-      { id: "ac-meter", device_id: "esp-301", name: "空调", type: "meter", powerW: 900, energyKwh: 34.2 },
-      { id: "light", device_id: "esp-301", name: "照明", type: "switch", state: true },
-      { id: "socket", device_id: "esp-301", name: "插座", type: "switch", state: false },
-      { id: "ac", device_id: "esp-301", name: "空调", type: "switch", state: true },
-    ],
-  },
-  {
-    id: "esp-302",
-    name: "302 房",
-    online: true,
-    power: 0,
-    energy: 3.2,
-    entities: [
-      { id: "total-meter", device_id: "esp-302", name: "总电表", type: "meter", powerW: 0, energyKwh: 3.2 },
-      { id: "light", device_id: "esp-302", name: "照明", type: "switch", state: false },
-    ],
-  },
-  {
-    id: "esp-303",
-    name: "303 房",
-    online: false,
-    power: 120,
-    energy: 45.63,
-    entities: [
-      { id: "light-meter", device_id: "esp-303", name: "照明", type: "meter", powerW: 45, energyKwh: 18.2, lastUpdate: 1 },
-      { id: "ac-meter", device_id: "esp-303", name: "空调", type: "meter", powerW: 75, energyKwh: 27.43, lastUpdate: 1 },
-      { id: "ac", device_id: "esp-303", name: "空调", type: "switch", state: true, lastUpdate: 1 },
-    ],
-  },
-  {
-    id: "esp-304",
-    name: "304 房",
-    online: true,
-    power: 0,
-    energy: 0,
-    entities: [],
-  },
-  {
-    id: "esp-305",
-    name: "305 房",
-    online: true,
-    power: 2140,
-    energy: 152.08,
-    entities: [
-      { id: "light-meter", device_id: "esp-305", name: "照明", type: "meter", powerW: 120, energyKwh: 30.5 },
-      { id: "socket-meter", device_id: "esp-305", name: "插座", type: "meter", powerW: 320, energyKwh: 41.28 },
-      { id: "ac-meter", device_id: "esp-305", name: "空调", type: "meter", powerW: 1500, energyKwh: 60.3 },
-      { id: "bath-meter", device_id: "esp-305", name: "热水器", type: "meter", powerW: 200, energyKwh: 20 },
-      { id: "light", device_id: "esp-305", name: "照明", type: "switch", state: true },
-      { id: "socket", device_id: "esp-305", name: "插座", type: "switch", state: true },
-      { id: "ac", device_id: "esp-305", name: "空调", type: "switch", state: true },
-      { id: "bath", device_id: "esp-305", name: "热水器", type: "switch", state: false },
-      { id: "floor-heat", device_id: "esp-305", name: "地暖", state: true },
-    ],
-  },
-  {
-    id: "esp-306",
-    name: "306 房 二层靠山侧家庭套房（长名称示例）",
-    online: true,
-    power: 480,
-    energy: 88.9,
-    entities: [
-      { id: "light-meter", device_id: "esp-306", name: "照明", type: "meter", powerW: 80 },
-      { id: "ac-meter", device_id: "esp-306", name: "空调", type: "meter", energyKwh: 88.9 },
-      { id: "ac", device_id: "esp-306", name: "空调", type: "switch" },
-    ],
-  },
+/** 演示时 1 秒当 40 秒，两位小数下累计电量每秒都在涨 */
+const DEMO_SPEED = 40;
+/** 功率围绕基准值浮动 ±40W，各实体相位不同 */
+const SWING = 40;
+
+const meter = (
+  id: string,
+  name: string,
+  powerW?: number,
+  energyKwh?: number,
+): Entity => ({
+  id,
+  name,
+  type: "meter",
+  powerW,
+  energyKwh,
+});
+
+const sw = (id: string, name: string, state?: boolean): Entity => ({
+  id,
+  name,
+  type: "switch",
+  state,
+});
+
+function room(
+  id: string,
+  name: string,
+  online: boolean,
+  entities: Entity[],
+): Room {
+  const meters = entities.filter((e) => e.type === "meter");
+  return {
+    id,
+    name,
+    online,
+    power: meters.reduce((sum, e) => sum + (e.powerW ?? 0), 0),
+    energy: meters.reduce((sum, e) => sum + (e.energyKwh ?? 0), 0),
+    entities,
+  };
+}
+
+/** 每间房三个用电器：灯 / 热水壶 / 吹风机，各带一个开关和一块电表 */
+const APPLIANCES = [
+  { id: "light", name: "灯", powerW: 55, energyKwh: 3.42 },
+  { id: "kettle", name: "热水壶", powerW: 1600, energyKwh: 18.4 },
+  { id: "dryer", name: "吹风机", powerW: 900, energyKwh: 46.2 },
 ];
 
-// 演示时 1 秒当 40 秒，电量两位小数才看得到在涨
-const DEMO_SPEED = 40;
+const circuits = (state: boolean): Entity[] =>
+  APPLIANCES.flatMap((a) => [
+    meter(`${a.id}-meter`, `${a.name}功率`, a.powerW, a.energyKwh),
+    sw(a.id, a.name, state),
+  ]);
 
-/** 读数每秒变化一次，让页面看起来在跑 */
-export function startMockRooms(onRooms: (rooms: Room[]) => void) {
-  let step = 0;
+const TEMPLATE: Room[] = [
+  room("esp-301", "301 电表箱", true, circuits(true)),
+  room("esp-302", "302 电表箱", true, circuits(true)),
+  room("esp-303", "303 电表箱", false, circuits(false)),
+  room("esp-304", "304 电表箱", true, circuits(false)),
+  room("esp-305", "305 电表箱", true, circuits(true)),
+  // 读数没报齐：电表没功率没电量，开关没状态
+  room("esp-306", "前院独立小屋 · 带观景露台的亲子家庭房", true, [
+    meter("light-meter", "灯功率"),
+    sw("light", "灯"),
+    meter("kettle-meter", "热水壶功率"),
+    sw("kettle", "热水壶"),
+    meter("dryer-meter", "吹风机功率"),
+    sw("dryer", "吹风机"),
+  ]),
+];
 
-  const tick = () => {
-    step++;
-    onRooms(
-      base.map((room) => {
-        if (!room.online) return structuredClone(room);
-        const entities = room.entities.map((entity, index) => {
-          if (entity.type !== "meter" || entity.powerW === undefined) return { ...entity };
-          const powerW = Math.max(0, Math.round(entity.powerW + Math.sin(step / 4 + index) * 40));
-          if (entity.energyKwh === undefined) return { ...entity, powerW };
-          const energyKwh = entity.energyKwh + (entity.powerW / 3600000) * DEMO_SPEED * step;
-          return { ...entity, powerW, energyKwh };
-        });
-        const meters = entities.filter((entity) => entity.type === "meter");
-        return {
-          ...room,
-          power: meters.reduce((sum, entity) => sum + (entity.powerW ?? 0), 0),
-          energy: meters.reduce((sum, entity) => sum + (entity.energyKwh ?? 0), 0),
-          entities,
-        };
-      }),
-    );
-  };
+let tick = 0;
 
-  tick();
-  const timer = setInterval(tick, 1000);
-  return () => clearInterval(timer);
+/** 六间房的初值，每次给一份可改的副本 */
+export function mockRooms(): Room[] {
+  tick = 0;
+  return TEMPLATE.map((r) => ({
+    ...r,
+    entities: r.entities.map((e) => ({ ...e })),
+  }));
+}
+
+/** 上一帧推进一秒：功率正弦浮动，电量按功率累积，离线房整间不动 */
+export function mockTick(prev: Room[]): Room[] {
+  tick += 1;
+  return prev.map((r) => {
+    const template = TEMPLATE.find((t) => t.id === r.id);
+    if (!r.online || !template) return r;
+
+    const entities = r.entities.map((entity, i) => {
+      if (entity.type !== "meter") return entity;
+      const base = template.entities[i]?.powerW;
+      if (base === undefined) return entity; // 没报过读数的电表，mock 也不替它编
+      const powerW = Math.max(
+        0,
+        Math.round(base + SWING * Math.sin((tick + i * 7) / 9)),
+      );
+      return {
+        ...entity,
+        powerW,
+        energyKwh: Number(
+          ((entity.energyKwh ?? 0) + (powerW * DEMO_SPEED) / 3600000).toFixed(
+            2,
+          ),
+        ),
+      };
+    });
+
+    const meters = entities.filter((e) => e.type === "meter");
+    return {
+      ...r,
+      entities,
+      power: meters.reduce((sum, e) => sum + (e.powerW ?? 0), 0),
+      energy: meters.reduce((sum, e) => sum + (e.energyKwh ?? 0), 0),
+    };
+  });
 }
