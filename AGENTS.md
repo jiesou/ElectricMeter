@@ -62,10 +62,16 @@
   - `mock.ts` —— 六间房mock，每秒浮动，只被 `data.ts` 使用；切法与注入点见 `.agents/notes/decisions/Mock模式.md`
   - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房总览（汇总 / 搜索 / 筛选 / 房卡）、客房详情（电表读数 + 开关状态）、视频监控（`<img src="/api/cv/stream">` MJPEG，带重新加载与全屏）
   - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`；开发服务把 `/api` 代理到 `127.0.0.1:8080`（`VITE_API_TARGET` 可改），`bun run --cwd web dev` / `build`
+- **web2/**（第二版前端，Vue 3 + TS + Vite + Three.js；与 `web/` 并存、各跑各的互不影响，两端连同一个后端）
+  - `App.vue` / `data.ts` / `api.ts` / `mock.ts` —— 与 `web/` 同一套数据流，照抄后各改各的；叫法与 `web/` 保持一致（客房管理）
+  - `pages/IntroPage.vue` 未做；`RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房管理（已换肤）、客房详情、视频监控；`TwinPage.vue` —— 孪生大屏
+  - `twin/` —— `scene.ts` 建场景，`sandbox.ts` 拼江南合院白模（按 rooms 生成客房、家具、配电板与线管），`TwinCanvas.vue` 挂载；灯、家具与线路随真实读数亮灭流动
+  - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`、`/twin`（`meta.bare` 的无导航全屏页）；`bun run --cwd web2 dev` / `build`，开发服务同样把 `/api` 代理到 `127.0.0.1:8080`
 
 > 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN（RK-fork 去 DFL/后处理 + INT8 量化）与真摄像头**已在香橙派 5 Plus 上实测跑通**。
 > 判定线怎么标、跟客房怎么挂、人数怎么算见 `.agents/notes/decisions/人数监控与判定线标定.md`。
 > 网页第一版的范围与取舍见 `.agents/notes/decisions/网页前端第一版设计.md`。
+> 网页第二版（`web2/`）的设计与实施步骤见 `.agents/notes/decisions/网页前端第二版设计.md`。
 
 ## 已规划
 
@@ -78,5 +84,5 @@
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **硬件下位机落地** —— RS485 电能表 + 可控断路器 + ESP32 接真实回路替换掉模拟器，协议与服务器都不用改
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）
-- **网页第二版** —— 介绍页 + 3D 白模沙盘孪生大屏（Three.js，灯、空调、插座随真实状态动作）+ 管理页换肤，设计与实施步骤见 `.agents/notes/decisions/网页前端第二版设计.md`
+- **网页第二版介绍页** —— `/#/` 叙事长页，滚动推镜头接白模沙盘；实施步骤见 `.agents/notes/decisions/网页前端第二版设计.md`
 - **部署网络** —— 每房间一个 AP + 机房服务器机柜，服务跑在 **Ubuntu Server + Docker**
