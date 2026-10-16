@@ -27,7 +27,7 @@
     {
       "label": "test",
       "type": "shell",
-      "command": "cd server && bun test",
+      "command": "bun run test",
       "presentation": { "group": "test" },
       "problemMatcher": []
     },

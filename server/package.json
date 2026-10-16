@@ -10,7 +10,7 @@
     "check": "bunx tsc --noEmit -p tsconfig.json",
     "db:push": "bunx prisma generate && bunx prisma db push",
     "test": "bun run test:db && bun test",
-    "test:db": "bunx prisma generate && DATABASE_URL=file:./data/electric.test.db bunx prisma db push --force-reset"
+    "test:db": "rm -f data/electric.test.db* && bunx prisma generate && DATABASE_URL=file:./data/electric.test.db bunx prisma db push"
   },
   "dependencies": {
     "@em/shared": "workspace:*",

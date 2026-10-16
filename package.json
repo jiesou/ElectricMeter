@@ -1,7 +1,15 @@
 {
   "name": "electricmeter",
   "private": true,
-  "workspaces": ["shared", "server", "cli", "web"],
+  "workspaces": [
+    "shared",
+    "server",
+    "cli",
+    "web"
+  ],
+  "scripts": {
+    "test": "bun --cwd=server run test:db && bun test"
+  },
   "devDependencies": {
     "@types/bun": "^1.4.2"
   }
