@@ -14,6 +14,7 @@ import { computed, onMounted } from "vue";
 import { Line } from "vue-chartjs";
 import type { Room } from "../api.ts";
 import { mock } from "../data.ts";
+import { circuitColor, cssVar } from "../color.ts";
 import { loadHistory, series } from "../history.ts";
 
 Chart.register(
@@ -26,17 +27,11 @@ Chart.register(
   Tooltip,
 );
 
-/** 电表配色，按序号循环 */
-const PALETTE = [
-  "#1d4ed8",
-  "#0891b2",
-  "#15803d",
-  "#b45309",
-  "#7c3aed",
-  "#be123c",
-];
-const BORDER = "#e2e8f0";
-const MUTED = "#475569";
+/** 颜色一律从主题读，不在这里写死 */
+const BORDER = cssVar("--border");
+const MUTED = cssVar("--muted");
+const TEXT = cssVar("--text");
+const CARD = cssVar("--card");
 
 const props = defineProps<{ room: Room }>();
 
@@ -51,8 +46,8 @@ const chartData = computed<ChartData<"line">>(() => {
   ].sort((a, b) => a - b);
   return {
     labels,
-    datasets: all.map((s, i) => {
-      const color = PALETTE[i % PALETTE.length];
+    datasets: all.map((s) => {
+      const color = circuitColor(s.id, props.room.entities);
       const byTs = new Map(s.points.map((p) => [p.ts, p.powerW]));
       return {
         label: s.name,
@@ -76,12 +71,12 @@ const options: ChartOptions<"line"> = {
   interaction: { mode: "index", intersect: false },
   plugins: {
     tooltip: {
-      backgroundColor: "#ffffff",
+      backgroundColor: CARD,
       borderColor: BORDER,
       borderWidth: 1,
       titleColor: MUTED,
-      bodyColor: "#0f172a",
-      footerColor: "#0f172a",
+      bodyColor: TEXT,
+      footerColor: TEXT,
       padding: 10,
       callbacks: {
         title: (items) => clock(Number(items[0]?.label)),

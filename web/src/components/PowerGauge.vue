@@ -105,7 +105,8 @@ const needle = computed(() => at(START + SWEEP * ratio.value, 22));
 
 .value {
   fill: none;
-  stroke: var(--primary);
+  /* 有回路色就用回路色（实体小卡），房级总表没有就退回主题主色 */
+  stroke: var(--circuit, var(--primary));
   stroke-width: 2.5;
   stroke-linecap: round;
 }

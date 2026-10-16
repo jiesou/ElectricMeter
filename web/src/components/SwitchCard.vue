@@ -66,12 +66,13 @@ defineEmits<{ toggle: [] }>();
   height: 40px;
   border-radius: 50%;
   background: var(--card);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+  box-shadow: var(--shadow);
   transition: transform 200ms ease-out;
 }
 
 .track.on {
-  background: var(--green);
+  /* 默认跟电表一个颜色（主题主色），有回路色才用回路色 */
+  background: var(--circuit, var(--primary));
 }
 
 .track.on .knob {
