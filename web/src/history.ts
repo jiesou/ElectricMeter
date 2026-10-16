@@ -13,8 +13,11 @@ export interface Series {
 
 const store = reactive(new Map<string, Series[]>());
 
+/** 曲线与接口同序：按 id 字母序，跟谁先被记上无关 */
 export function series(device_id: string): Series[] {
-  return store.get(device_id) ?? [];
+  return [...(store.get(device_id) ?? [])].sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
 }
 
 export function clearHistory() {

@@ -1,11 +1,12 @@
 import { Hono } from "hono";
 import * as hub from "../core/hub.ts";
 import { streamSnapshot } from "../core/sse.ts";
+import { byId } from "../core/util.ts";
 
 export const devices = new Hono();
 
 const snapshot = () =>
-  [...hub.devices.values()].map((d) => {
+  [...hub.devices.values()].sort(byId).map((d) => {
     const meters = [...d.entities.values()].filter((e) => e.type === "meter");
     return {
       id: d.id,

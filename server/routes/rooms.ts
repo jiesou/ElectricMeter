@@ -2,13 +2,13 @@ import { Hono } from "hono";
 import { db } from "../core/db.ts";
 import * as hub from "../core/hub.ts";
 import { streamSnapshot } from "../core/sse.ts";
-import { now } from "../core/util.ts";
+import { now, byId } from "../core/util.ts";
 
 export const rooms = new Hono();
 
 const snapshot = () =>
-  [...hub.devices.values()].map((device) => {
-    const entities = [...device.entities.values()];
+  [...hub.devices.values()].sort(byId).map((device) => {
+    const entities = [...device.entities.values()].sort(byId);
     const meters = entities.filter((entity) => entity.type === "meter");
     return {
       id: device.id,

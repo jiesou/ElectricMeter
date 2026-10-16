@@ -49,9 +49,10 @@ test("客房快照组合设备信息、汇总读数和实体", async () => {
     power: 75,
     energy: 5.5,
     entities: [
+      // 展示顺序按 id 字母序，跟申报的先后无关
+      { id: "dryer-meter", powerW: 20 },
       { id: "light", state: true },
       { id: "light-meter", powerW: 55 },
-      { id: "dryer-meter", powerW: 20 },
     ],
   });
 });

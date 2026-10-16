@@ -1,13 +1,15 @@
 import { Hono } from "hono";
 import * as hub from "../core/hub.ts";
 import { streamSnapshot } from "../core/sse.ts";
+import { byId, now } from "../core/util.ts";
 
 export const entities = new Hono();
 
 const snapshot = (device_id?: string) =>
   [...hub.devices.values()]
     .filter((d) => !device_id || d.id === device_id)
-    .flatMap((d) => [...d.entities.values()]);
+    .sort(byId)
+    .flatMap((d) => [...d.entities.values()].sort(byId));
 
 /** 实体清单：身份和读数都在内存那张表里。不给 device 就是所有设备的实体 */
 entities.get("/", (c) => c.json(snapshot(c.req.query("device"))));
