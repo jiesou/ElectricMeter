@@ -7,7 +7,9 @@ export function streamSnapshot(c: Context, getSnapshot: () => unknown) {
     start(controller) {
       const send = () => {
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(getSnapshot())}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(getSnapshot())}\n\n`),
+          );
         } catch {
           if (timer) clearInterval(timer);
         }

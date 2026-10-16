@@ -14,9 +14,11 @@ cv.get("/stream", (c) => {
         const frame = getLatestFrame();
         if (!frame) return;
         try {
-          controller.enqueue(encoder.encode(
-            `--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`,
-          ));
+          controller.enqueue(
+            encoder.encode(
+              `--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`,
+            ),
+          );
           controller.enqueue(frame);
           controller.enqueue(encoder.encode("\r\n"));
         } catch {

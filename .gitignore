@@ -14,3 +14,5 @@ slintui/samples/
 slintui/yolo11n.pt
 __pycache__/
 target/
+
+.tmp

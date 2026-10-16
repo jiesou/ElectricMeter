@@ -15,7 +15,9 @@ export function getLatestFrame(): Uint8Array | null {
 export function startUdpCamera(port = 8080): void {
   const socket = createSocket("udp4");
 
-  socket.on("error", (err) => console.error("[udp_camera] UDP socket 错误:", err));
+  socket.on("error", (err) =>
+    console.error("[udp_camera] UDP socket 错误:", err),
+  );
   socket.on("message", (msg) => processPacket(msg));
   socket.on("listening", () => console.log(`udp      udp://localhost:${port}`));
 
@@ -25,7 +27,8 @@ export function startUdpCamera(port = 8080): void {
 function processPacket(data: Uint8Array): void {
   if (data.length < 8) return;
 
-  const frameIndex = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+  const frameIndex =
+    data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
   const chunkIndex = data[4] | (data[5] << 8);
   const chunkTotal = data[6] | (data[7] << 8);
 

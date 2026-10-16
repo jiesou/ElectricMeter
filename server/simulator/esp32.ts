@@ -42,13 +42,20 @@ function sample() {
   power.dryer = relay.dryer ? 900 : 0;
 }
 
-const send = (m: WSMessage) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
+const send = (m: WSMessage) =>
+  ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
 const now = () => Math.floor(Date.now() / 1000);
 
 function entities(): Entity[] {
   return CIRCUITS.flatMap((c) => [
     { id: c.id, name: c.name, type: "switch", state: relay[c.id] },
-    { id: id(c.id, "meter"), name: `${c.name}功率`, type: "meter", powerW: power[c.id], energyKwh: Number(energy[c.id].toFixed(2)) },
+    {
+      id: id(c.id, "meter"),
+      name: `${c.name}功率`,
+      type: "meter",
+      powerW: power[c.id],
+      energyKwh: Number(energy[c.id].toFixed(2)),
+    },
   ]);
 }
 
@@ -65,7 +72,8 @@ function tick() {
     const old = snap.get(e.id);
     const diff: Record<string, unknown> = { id: e.id, ts };
     for (const [key, value] of Object.entries(e)) {
-      if (key !== "id" && old?.[key as keyof Entity] !== value) diff[key] = value;
+      if (key !== "id" && old?.[key as keyof Entity] !== value)
+        diff[key] = value;
     }
     if (Object.keys(diff).length > 2) changed.push(diff as unknown as Entity);
     snap.set(e.id, e);
@@ -92,7 +100,10 @@ function connect() {
     for (const e of declared) snap.set(e.id, e);
     send({ type: "pub_entities", ts, entities: declared });
     reportTimer = setInterval(tick, INTERVAL);
-    aliveTimer = setInterval(() => send({ type: "pub_alive", ts: now() }), ALIVE * 1000);
+    aliveTimer = setInterval(
+      () => send({ type: "pub_alive", ts: now() }),
+      ALIVE * 1000,
+    );
     console.log(`${DEVICE_ID} 已接入 ${HOST}`);
   };
   ws.onclose = () => {

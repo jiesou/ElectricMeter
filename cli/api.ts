@@ -29,7 +29,9 @@ export function createApi(host: string): Api {
       );
     }
     if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      const body = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       throw new CliError(body?.error ?? `${path} → HTTP ${res.status}`);
     }
     return res;
@@ -51,7 +53,10 @@ export function createApi(host: string): Api {
         const parts = buf.split("\n\n");
         buf = parts.pop() ?? "";
         for (const part of parts) {
-          const data = part.split("\n").find((l) => l.startsWith("data: "))?.slice(6);
+          const data = part
+            .split("\n")
+            .find((l) => l.startsWith("data: "))
+            ?.slice(6);
           if (data) on(JSON.parse(data) as T);
         }
       }

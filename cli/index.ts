@@ -12,7 +12,10 @@ const prog = new Command()
   .description("ElectricMeter 民宿用电管理 CLI")
   .version("0.1.0")
   .option("--json", "输出原始 JSON，供脚本 / MCP 使用")
-  .option("--host <url>", "服务器地址（默认读 EM_HOST，再默认 http://localhost:8080）");
+  .option(
+    "--host <url>",
+    "服务器地址（默认读 EM_HOST，再默认 http://localhost:8080）",
+  );
 
 const json = () => Boolean(prog.opts().json);
 
@@ -53,7 +56,9 @@ prog
   .option("-d, --device <id>", "按设备过滤，如 esp-301")
   .action(async (opts: { device?: string }) => {
     await run(async (api) => {
-      const list = await api.get<Entity[]>(`/entities${opts.device ? `?device=${encodeURIComponent(opts.device)}` : ""}`);
+      const list = await api.get<Entity[]>(
+        `/entities${opts.device ? `?device=${encodeURIComponent(opts.device)}` : ""}`,
+      );
       console.log(json() ? JSON.stringify(list, null, 2) : view.entities(list));
     });
   });
@@ -61,7 +66,8 @@ prog
 /** esp-301/light → { device_id, id } */
 function parseRef(ref: string) {
   const [device_id, id] = ref.split("/");
-  if (!device_id || !id) throw new CliError(`实体引用要写成 设备/实体，例如 esp-301/light：${ref}`);
+  if (!device_id || !id)
+    throw new CliError(`实体引用要写成 设备/实体，例如 esp-301/light：${ref}`);
   return { device_id, id };
 }
 
@@ -91,7 +97,11 @@ prog
         if (json()) console.log(JSON.stringify(snap));
         else {
           process.stdout.write("\x1b[H\x1b[2J");
-          console.log(opts.device ? view.entities(snap as Entity[]) : view.watchTick(snap as Room[]));
+          console.log(
+            opts.device
+              ? view.entities(snap as Entity[])
+              : view.watchTick(snap as Room[]),
+          );
         }
       });
     });
@@ -102,7 +112,9 @@ tab(prog, { completionCommandName: "completion" });
 
 /** 裸 `em`（可带全局 flag，无子命令）= 总览；--help/--version 仍交给 commander */
 const argv = process.argv.slice(2);
-const bare = !argv.some((a) => ["-h", "--help", "-V", "--version"].includes(a)) && !argv.some((a) => !a.startsWith("-"));
+const bare =
+  !argv.some((a) => ["-h", "--help", "-V", "--version"].includes(a)) &&
+  !argv.some((a) => !a.startsWith("-"));
 if (bare) {
   await run(overview);
   process.exit(0);

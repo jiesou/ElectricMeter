@@ -10,7 +10,12 @@ export async function save() {
   const rows = [...devices.values()].flatMap((device) =>
     [...device.entities.values()]
       .filter((entity) => entity.type === "meter")
-      .map((entity) => ({ device_id: device.id, id: entity.id, ts, powerW: entity.powerW ?? 0 })),
+      .map((entity) => ({
+        device_id: device.id,
+        id: entity.id,
+        ts,
+        powerW: entity.powerW ?? 0,
+      })),
   );
   if (!rows.length) return;
   await db.$transaction([

@@ -21,7 +21,9 @@ describe("api.get", () => {
   });
 
   test("服务端 404 文案原样透出", async () => {
-    expect(api.get("/entities/esp-301/nope")).rejects.toThrow("未知实体: esp-301/nope");
+    expect(api.get("/entities/esp-301/nope")).rejects.toThrow(
+      "未知实体: esp-301/nope",
+    );
   });
 
   test("连不上给启动提示", async () => {

@@ -57,15 +57,12 @@
   - `rust/frame_sender/` —— Rust 写的 Python 扩展（maturin）：BGR 帧 → JPEG q80 → 8 字节包头分片 → UDP
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
-  - `App.vue` —— 搜索与筛选（进出详情不丢）+ 全局 `Home` 键切 mock，全站一份
-  - `data.ts` —— 唯一数据入口：`rooms` / `status` / `mock`，按来源连 REST + SSE 或 mock；`api.ts` 负责 REST、EventSource 的创建和关闭
-  - `mock.ts` —— 六间房mock，每秒浮动，只被 `data.ts` 使用；切法与注入点见 `.agents/notes/decisions/Mock模式.md`
-  - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房总览（汇总 / 搜索 / 筛选 / 房卡）、客房详情（电表读数 + 开关状态）、视频监控（`<img src="/api/cv/stream">` MJPEG，带重新加载与全屏）
-  - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`；开发服务把 `/api` 代理到 `127.0.0.1:8080`（`VITE_API_TARGET` 可改），`bun run --cwd web dev` / `build`
+  - `src/data.ts` 唯一数据注入点（`rooms` / `status` / `mock` + 搜索词），`Home` 切 mock 只在 `App.vue` 挂一次；`api.ts` REST + SSE，`history.ts` 每帧给每个电表 append 一个曲线点（开局查一次 `/api/rooms/:id/history` 回填）
+  - `src/views/` 客房管理（搜索框 + 房卡：手写 SVG 功率表、Chart.js 堆叠曲线、Entity 小卡）/ 视频监控（`<img>` 吃 `/api/cv/stream`）；`src/components/` 放房卡与各类小卡；导航（桌面左栏、窄屏底部 tab）在 `App.vue`
+  - 设计意图见 `.agents/notes/decisions/网页前端设计.md`
 
 > 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN（RK-fork 去 DFL/后处理 + INT8 量化）与真摄像头**已在香橙派 5 Plus 上实测跑通**。
 > 判定线怎么标、跟客房怎么挂、人数怎么算见 `.agents/notes/decisions/人数监控与判定线标定.md`。
-> 网页第一版的范围与取舍见 `.agents/notes/decisions/网页前端第一版设计.md`。
 
 ## 已规划
 
