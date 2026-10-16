@@ -90,3 +90,76 @@ test("单个实体：未知的就 404", async () => {
   ).toBe("灯");
   expect((await app.request("/api/entities/esp-203/nope")).status).toBe(404);
 });
+
+/** 会记账的假板子：收到的报文都留着 */
+async function recordingDevice(id: string, entities: Entity[]) {
+  const sent: any[] = [];
+  const ws = {
+    send: (raw: string) => sent.push(JSON.parse(raw)),
+    close: () => {},
+  } as never;
+  await hub.connect(id, ws, "10.0.0.9");
+  await hub.handleMessage(
+    id,
+    JSON.stringify({ type: "pub_entities", ts: now(), entities }),
+  );
+  return sent;
+}
+
+const post = (path: string, body: unknown) =>
+  app.request(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+test("下通断令：设备收到 pub_action_switch，ack 回来 state 才落表", async () => {
+  const sent = await recordingDevice("esp-207", [
+    { id: "light", name: "灯", type: "switch", state: false },
+  ]);
+
+  const res = await post("/api/entities/esp-207/light/switch", { state: true });
+  expect(res.status).toBe(200);
+  expect(sent.at(-1)).toMatchObject({
+    type: "pub_action_switch",
+    id: "light",
+    state: true,
+  });
+  // 只是下了令，还没回执：表里还是旧的
+  expect(hub.devices.get("esp-207")!.entities.get("light")!.state).toBe(false);
+
+  await hub.handleMessage(
+    "esp-207",
+    JSON.stringify({
+      type: "ack_action_switch",
+      ts: now(),
+      id: "light",
+      state: true,
+    }),
+  );
+  expect(
+    (await json(await app.request("/api/entities/esp-207/light"))).state,
+  ).toBe(true);
+});
+
+test("下通断令：未知设备、未知实体、非开关、设备离线都拒掉", async () => {
+  await device("esp-208", [
+    { id: "light", name: "灯", type: "switch", state: false },
+    { id: "light-meter", name: "灯功率", type: "meter", powerW: 0 },
+  ]);
+
+  expect((await post("/api/entities/esp-209/light/switch", {})).status).toBe(
+    404,
+  );
+  expect((await post("/api/entities/esp-208/nope/switch", {})).status).toBe(
+    404,
+  );
+  expect(
+    (await post("/api/entities/esp-208/light-meter/switch", {})).status,
+  ).toBe(400);
+
+  hub.devices.get("esp-208")!.online = false;
+  expect(
+    (await post("/api/entities/esp-208/light/switch", { state: true })).status,
+  ).toBe(409);
+});

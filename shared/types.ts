@@ -65,7 +65,22 @@ export interface AckAliveMessage extends WSMessage {
 }
 
 /* 下位机按字段部分更新：只带 id 和本次要更新的字段，其余字段缺席即不改 */
+
 export interface EntitiesMessage extends WSMessage {
   type: "pub_entities";
   entities: Entity[];
+}
+
+/* 服务器叫设备做事：下通断令，设备干完回执 */
+
+export interface PubActionSwitchMessage extends WSMessage {
+  type: "pub_action_switch";
+  id: string;
+  state: boolean;
+}
+
+export interface AckActionSwitchMessage extends WSMessage {
+  type: "ack_action_switch";
+  id: string;
+  state: boolean;
 }

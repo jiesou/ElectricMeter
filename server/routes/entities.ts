@@ -24,3 +24,18 @@ entities.get("/:device_id/:id", (c) => {
   const e = hub.devices.get(device_id)?.entities.get(id);
   return e ? c.json(e) : c.json({ error: `未知实体: ${device_id}/${id}` }, 404);
 });
+
+/** 下通断令：发给设备就返回，设备干完回 ack，state 走 SSE 回来 */
+entities.post("/:device_id/:id/switch", async (c) => {
+  const { device_id, id } = c.req.param();
+  const device = hub.devices.get(device_id);
+  if (!device) return c.json({ error: `未知设备: ${device_id}` }, 404);
+  const e = device.entities.get(id);
+  if (!e) return c.json({ error: `未知实体: ${device_id}/${id}` }, 404);
+  if (e.type !== "switch") return c.json({ error: `${id} 不是开关` }, 400);
+  if (!device.online) return c.json({ error: `设备不在线: ${device_id}` }, 409);
+
+  const { state } = await c.req.json<{ state: boolean }>();
+  hub.sendTo(device_id, { type: "pub_action_switch", ts: now(), id, state });
+  return c.json({ id, state });
+});

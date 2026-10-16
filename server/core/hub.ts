@@ -1,5 +1,6 @@
 import type { WSContext } from "hono/ws";
 import type {
+  AckActionSwitchMessage,
   Device,
   EntitiesMessage,
   Entity,
@@ -110,10 +111,23 @@ handlers.push(async (device, _reply, m) => {
 });
 
 /** 设备干完活回执：回执里的 state 就是实体现在的状态，写回内存与库，顺手推给网页 */
+handlers.push(async (device, _reply, m) => {
+  if (m.type !== "ack_action_switch") return;
+  const { id, state } = m as AckActionSwitchMessage;
+  const row = devices.get(device.id)?.entities.get(id);
+  if (row?.type !== "switch") return;
+  row.state = state;
+  row.ts = m.ts ?? now();
+  await db.entity.update({
+    where: { device_id_id: { device_id: device.id, id } },
+    data: { state, ts: row.ts },
+  });
+  for (const notify of onUpdate) notify();
 });
 
 export async function connect(device_id: string, ws: WSContext, ip = "") {
   // 先登记连接再写库：板子的第一条消息可能比这次写库更早到
+  let device = devices.get(device_id);
   if (device) {
     device.ip = ip;
     device.online = true;

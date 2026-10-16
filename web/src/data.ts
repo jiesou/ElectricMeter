@@ -1,6 +1,13 @@
 import { ref } from "vue";
+import type { Entity } from "@em/shared";
 import type { Room } from "./api.ts";
-import { deleteRoom, fetchRooms, renameRoom, streamRooms } from "./api.ts";
+import {
+  deleteRoom,
+  fetchRooms,
+  renameRoom,
+  streamRooms,
+  switchEntity,
+} from "./api.ts";
 import { clearHistory, record } from "./history.ts";
 import { mockRooms, mockTick } from "./mock.ts";
 
@@ -74,4 +81,10 @@ export async function rename(id: string, name: string) {
 export async function remove(id: string) {
   if (!mock.value) await deleteRoom(id);
   rooms.value = rooms.value.filter((r) => r.id !== id);
+}
+
+/** 翻闸：先本地翻一下，设备 ack 回来 SSE 会把实际状态盖上去 */
+export async function setSwitch(device_id: string, e: Entity, state: boolean) {
+  e.state = state;
+  if (!mock.value) await switchEntity(device_id, e.id, state);
 }

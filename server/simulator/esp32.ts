@@ -1,4 +1,8 @@
-import type { Entity, WSMessage } from "@em/shared";
+import type {
+  Entity,
+  PubActionSwitchMessage,
+  WSMessage,
+} from "@em/shared";
 import { ALIVE } from "@em/shared";
 
 const DEVICE_ID = process.env.DEVICE_ID ?? "esp-301";
@@ -35,8 +39,6 @@ function kettle() {
 }
 
 function sample() {
-  if (Math.random() < 0.01) relay.light = !relay.light;
-  if (Math.random() < 0.0075) relay.kettle = !relay.kettle;
   power.light = relay.light ? 55 : 0;
   power.kettle = relay.kettle ? 12 + kettle() : 0;
   power.dryer = relay.dryer ? 900 : 0;
@@ -105,6 +107,14 @@ function connect() {
       ALIVE * 1000,
     );
     console.log(`${DEVICE_ID} 已接入 ${HOST}`);
+  };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(String(e.data)) as WSMessage;
+    if (m.type !== "pub_action_switch") return;
+    const a = m as PubActionSwitchMessage;
+    if (!(a.id in relay)) return;
+    relay[a.id as Circuit] = a.state; // 闸翻了，下一拍功率跟着变
+    send({ type: "ack_action_switch", ts: now(), id: a.id, state: a.state });
   };
   ws.onclose = () => {
     stopTimers();

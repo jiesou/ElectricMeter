@@ -60,3 +60,16 @@ export async function renameRoom(
 export async function deleteRoom(device_id: string): Promise<void> {
   await send(`/rooms/${device_id}`, { method: "DELETE" });
 }
+
+/** 下通断令：返回不代表闸已经动了，新状态走 SSE 回来 */
+export async function switchEntity(
+  device_id: string,
+  id: string,
+  state: boolean,
+): Promise<void> {
+  await send(`/entities/${device_id}/${id}/switch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ state }),
+  });
+}

@@ -2,7 +2,7 @@
 import type { Entity } from "@em/shared";
 import { computed, nextTick, ref } from "vue";
 import type { Room } from "../api.ts";
-import { rename, remove } from "../data.ts";
+import { rename, remove, setSwitch } from "../data.ts";
 import { circuitVar } from "../color.ts";
 import { energy } from "../format.ts";
 import MeterCard from "./MeterCard.vue";
@@ -25,13 +25,11 @@ const counter = computed(() =>
   props.room.entities.find((e) => e.type === "people-counter"),
 );
 
-// 闸只画不接：点一下只切本地状态，刷新就回到接口的值
-const touched = ref<Record<string, boolean>>({});
-const isOn = (e: Entity) => touched.value[e.id] ?? e.state ?? false;
-const reported = (e: Entity) => e.state !== undefined || e.id in touched.value;
+const isOn = (e: Entity) => e.state ?? false;
+const reported = (e: Entity) => e.state !== undefined;
 
 function toggle(e: Entity) {
-  if (props.room.online) touched.value[e.id] = !isOn(e);
+  if (props.room.online) void setSwitch(props.room.id, e, !isOn(e)).catch(() => {});
 }
 
 // 总闸：全房开关全为 on 才是 on，点一下全部切到相反值
@@ -42,7 +40,8 @@ const masterOn = computed(
 function toggleMaster() {
   if (!props.room.online || !switches.value.length) return;
   const next = !masterOn.value;
-  for (const e of switches.value) touched.value[e.id] = next;
+  for (const e of switches.value)
+    void setSwitch(props.room.id, e, next).catch(() => {});
 }
 
 const editing = ref(false);
