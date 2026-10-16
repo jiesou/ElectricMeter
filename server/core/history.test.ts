@@ -6,11 +6,8 @@ import * as hub from "./hub.ts";
 import { now } from "./util.ts";
 
 async function device(id: string, entities: Entity[]) {
-  await hub.connect(
-    id,
-    { send: () => {}, close: () => {} } as never,
-    "10.0.0.9",
-  );
+  const ws = { send: () => {}, close: () => {} } as never;
+  await hub.connect(id, ws, "10.0.0.9");
   await hub.handleMessage(
     id,
     JSON.stringify({ type: "pub_entities", ts: now(), entities }),

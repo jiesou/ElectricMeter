@@ -6,13 +6,13 @@ import { now } from "../core/util.ts";
 
 const json = async (res: Response) => (await res.json()) as any;
 
-/** 假下位机：连上声明自己有什么 */
+/** 假板子：往上报就完事 */
+const fakeWs = () => ({ send: () => {}, close: () => {} }) as never;
+
+/** 假下位机：连上声明自己有什么，返回这条连接（要断线就拿着它） */
 async function device(id: string, entities: Entity[]) {
-  await hub.connect(
-    id,
-    { send: () => {}, close: () => {} } as never,
-    "10.0.0.9",
-  );
+  const ws = fakeWs();
+  await hub.connect(id, ws, "10.0.0.9");
   await hub.handleMessage(
     id,
     JSON.stringify({ type: "pub_entities", ts: now(), entities }),
