@@ -26,7 +26,20 @@ model Entity {
   powerW     Float?
   energyKwh  Float?
   lastUpdate Int?
-  device     Device  @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  device     Device          @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  history    EntityHistory[]
 
   @@id([device_id, id])
+}
+
+// Entity 的历史读数，只留最近 10 分钟（窗口见 core/history.ts）
+model EntityHistory {
+  device_id String
+  id        String
+  ts        Int
+  powerW    Float
+  entity    Entity @relation(fields: [device_id, id], references: [device_id, id], onDelete: Cascade)
+
+  @@id([device_id, id, ts])
+  @@index([device_id, ts])
 }

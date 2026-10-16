@@ -1,6 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 import type { Entity } from "@em/shared";
 import { app } from "../app.ts";
+import { db } from "../core/db.ts";
 import * as hub from "../core/hub.ts";
 import { now } from "../core/util.ts";
 
@@ -46,4 +47,19 @@ test("客房 SSE 立即发送与 REST 相同的快照", async () => {
   } finally {
     await reader.cancel();
   }
+});
+
+test("客房历史只给窗口内的读数", async () => {
+  await device("esp-303", [{ id: "light-meter", name: "照明功率", type: "meter", powerW: 55 }]);
+  const ts = now();
+  await db.entityHistory.createMany({
+    data: [
+      { device_id: "esp-303", id: "light-meter", ts: ts - 5, powerW: 55 },
+      { device_id: "esp-303", id: "light-meter", ts: ts - 601, powerW: 10 },
+    ],
+  });
+
+  expect(await json(await app.request("/api/rooms/esp-303/history"))).toEqual([
+    { device_id: "esp-303", id: "light-meter", ts: ts - 5, powerW: 55 },
+  ]);
 });

@@ -34,8 +34,8 @@ function processPacket(data: Uint8Array): void {
 
   cleanupBuffer();
 
-  const chunks = frameBuffer.get(frameIndex)!;
-  if (chunks.size !== chunkTotal) return;
+  const chunks = frameBuffer.get(frameIndex);
+  if (!chunks || chunks.size !== chunkTotal) return; // 乱序旧帧可能已被清掉，丢弃
 
   // 缺一片就丢整帧
   const ordered: Uint8Array[] = [];

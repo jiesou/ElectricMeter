@@ -6,7 +6,7 @@
 
 ---
 
-## 一、结论
+## 结论
 
 | 层 | 归属 | 理由 |
 |---|---|---|
@@ -24,7 +24,7 @@
 
 ---
 
-## 二、为什么 Rust 这条腿站得住
+## 为什么 Rust 这条腿站得住
 
 ### Slint Rust 后端是一等公民，不是二等
 
@@ -56,7 +56,7 @@
 
 ---
 
-## 三、`.slint` 复用率：文件 100%，逻辑代码几乎全丢
+## `.slint` 复用率：文件 100%，逻辑代码几乎全丢
 
 ### `.slint` 文件：零改动
 
@@ -92,7 +92,7 @@ OpenCV 给的是 BGR，Slint 只吃 RGB —— Rust 侧要显式 swap R/B。老�
 
 ---
 
-## 四、必须留在 Python 的两个
+## 必须留在 Python 的两个
 
 ### RKNN：C API 极小，但 crate 不行
 
@@ -116,7 +116,7 @@ Python 侧是**官方 wheel**：rknn-toolkit-lite2 2.3.2（`manylinux_2_17_aarch
 
 ---
 
-## 五、两进程 IPC
+## 两进程 IPC
 
 ### 通道 1：控制消息 —— stdin/stdout 上的 JSON 行
 
@@ -161,7 +161,7 @@ Rust:   slint::Image::load_from_path(path)   ← winit/femtovg 后端默认开 i
 
 ---
 
-## 六、WS 客户端放 Rust 侧的连带决定
+## WS 客户端放 Rust 侧的连带决定
 
 规划文档里的三个 role，`console` 正好就是 Rust 主进程。有个选择题：
 
@@ -172,7 +172,7 @@ Rust:   slint::Image::load_from_path(path)   ← winit/femtovg 后端默认开 i
 
 ---
 
-## 七、可执行路径
+## 可执行路径
 
 ### 第 0 步 · 装工具链（本机已具备条件）
 
@@ -208,12 +208,12 @@ cross build --release --target aarch64-unknown-linux-gnu
 ### 第 4~6 步
 
 4. IPC：先只发一条 `{"type":"hello"}` 验证管道通不通，**不要一次写完**
-5. 接 WS（按 [WS通信架构-ESP32与香橙派双device.md](./WS通信架构-ESP32与香橙派双device.md)）
+5. 接 WS（架构由 decisions 定）
 6. RKNN + 跨线计数 + `/dev/shm` 帧 —— 最后做，且在板子上做
 
 ---
 
-## 八、未验证的部分（不要在这些点上拍板）
+## 未验证的部分（不要在这些点上拍板）
 
 1. **一行 Rust 都没编译过** —— 本机无 cargo，第 1~3 步就是为了消掉这个
 2. **没验证本项目 5 个 `.slint` 在 Rust 编译期能过** —— 尤其 `radar-chart.slint` 的 `Path` + `MoveTo`/`LineTo`/`Close`。`.slint` 理论语言无关，但 `Path` 元素是后加的，**必须实测**

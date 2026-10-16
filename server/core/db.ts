@@ -9,3 +9,7 @@ const url = (process.env.DATABASE_URL ?? "file:./data/electric.db").replace(/^fi
 export const db = new PrismaClient({
   adapter: new PrismaLibSql({ url: `file:${isAbsolute(url) ? url : join(import.meta.dirname, "..", url)}` }),
 });
+
+// 读数每秒落一次盘，走 WAL 且不 fsync：进程崩溃不丢，断电最多回滚最后一笔
+await db.$executeRawUnsafe("PRAGMA journal_mode = WAL");
+await db.$executeRawUnsafe("PRAGMA synchronous = NORMAL");

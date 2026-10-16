@@ -1,4 +1,5 @@
 import { Palette, ScrollView } from "std-widgets.slint";
+import { AppData } from "app-data.slint";
 import { LineLabel, PeoplePageData, RoomRow } from "people-page-data.slint";
 import { CameraViewport } from "components/camera-viewport.slint";
 import { PageHeader } from "components/page-header.slint";
@@ -85,7 +86,7 @@ export component PeoplePage {
         spacing: 0px;
 
         VerticalLayout {
-            width: Sizing.screen-width * 74%;
+            width: 74%;
             padding: 0px;
             spacing: 0px;
 
@@ -100,7 +101,8 @@ export component PeoplePage {
                     width: 100%;
                     height: 100%;
                     frame <=> PeoplePageData.camera-frame;
-                    running: PeoplePageData.running;
+                    // 只在人数页渲染：tab 切走，16ms 定时器和推理线程一起停
+                    running: AppData.current-tab == 1;
                     request-camera-frame => { PeoplePageData.request-camera-frame(); }
                 }
 
@@ -160,7 +162,7 @@ export component PeoplePage {
         }
 
         Rectangle {
-            width: Sizing.screen-width * 26%;
+            width: 26%;
             background: Palette.alternate-background;
             border-color: Palette.border;
             border-width: 1px;
@@ -170,6 +172,7 @@ export component PeoplePage {
                 spacing: Sizing.small * 20%;
 
                 ScrollView {
+                    mouse-drag-pan-enabled: true;
                     vertical-stretch: 1;
 
                     VerticalLayout {

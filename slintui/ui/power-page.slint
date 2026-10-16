@@ -134,21 +134,15 @@ component RoomCard inherits Rectangle {
             color: Palette.foreground.with-alpha(50%);
         }
 
-        // 实体多了就横向滑：视口高度 = 实体卡 + 横向滚动条那一条，纵向没有可滚的量
-        if root.room.entities.length > 0 : ScrollView {
-            height: Sizing.screen-width * 20% + Sizing.small * 30%;
+        if root.room.entities.length > 0 : FlexboxLayout {
+            spacing: Sizing.small * 25%;
 
-            HorizontalLayout {
-                alignment: start;
-                spacing: Sizing.small * 25%;
+            for entity in root.room.entities : Rectangle {
+                width: entity.type == "meter" ? Sizing.screen-width * 17% : Sizing.screen-width * 11%;
+                height: Sizing.screen-width * 20%;
 
-                for entity in root.room.entities : Rectangle {
-                    width: entity.type == "meter" ? Sizing.screen-width * 17% : Sizing.screen-width * 11%;
-                    height: Sizing.screen-width * 20%;
-
-                    if entity.type == "meter" : MeterCard { entity: entity; }
-                    if entity.type == "switch" : SwitchCard { entity: entity; }
-                }
+                if entity.type == "meter" : MeterCard { entity: entity; }
+                if entity.type == "switch" : SwitchCard { entity: entity; }
             }
         }
     }
@@ -162,14 +156,14 @@ export component PowerPage {
         spacing: 0px;
 
         PageHeader {
-            title: "客房用电";
+            title: "客房管理";
         }
 
         ScrollView {
+            mouse-drag-pan-enabled: true;
             VerticalLayout {
                 alignment: start;
-                padding: Sizing.small * 50%;
-                padding-top: Sizing.small * 10%;
+                padding-top: Sizing.small * 20%;
                 spacing: Sizing.small * 40%;
 
                 for room in PowerPageData.rooms : RoomCard { room: room; }

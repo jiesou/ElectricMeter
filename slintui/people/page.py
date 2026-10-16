@@ -1,46 +1,66 @@
 """人数监控页：一路画面 + 这台机位的判定线，外加四个控件（标定 / 图传 / 换摄像头 / 清零）。
 
-框与判定线都由 vision.pipeline 画进帧里，这层只把帧和数字推给 UI、把 UI 的动作落回去。
+推理线程与渲染在 viewport（照老项目），这层只做装配和 UI 动作。
 """
 
+import threading
+import time
+
+import cv2
 import numpy as np
 import slint
 
 import frame_sender
-from calibration import Calibration
 from camera_service import camera_service
 from settings import stored_settings
-from vision import sources
 from vision.detector import Detector
-from vision.pipeline import Pipeline
 from vision.tracker import ByteTracker
+
+from .calibration import Calibration
+from .viewport import CameraViewport
 
 RoomRow = slint.loader.ui.people_page.RoomRow
 LineLabel = slint.loader.ui.people_page.LineLabel
 
-CALIBRATION_FPS = 20  # 标定态提帧率：拖动时帧里的线跟手一点（线在帧里，快不了更多）
-PEOPLE_FPS = 10
+
+def video_source(path):
+    """视频文件：后台线程按视频自己的帧率灌帧，只留最新一帧（照 camera_service 的抓法）"""
+    cap = cv2.VideoCapture(path)
+    fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    latest = [None]
+
+    def loop():
+        while True:
+            ok, frame = cap.read()
+            if not ok:  # 放完从头再来，演示要一直有画面
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                continue
+            latest[0] = frame
+            time.sleep(1 / fps)
+
+    threading.Thread(target=loop, daemon=True).start()
+    return lambda: latest[0]
 
 
-class CameraPage:
+class PeoplePage:
     def __init__(self, power_stream):
         self.power_stream = power_stream
         self.device, read_frame = self._source()
         self.calibration = Calibration(self.device)
         self.sender = self._sender()
         self.streaming = self.sender is not None
-        self.pipeline = Pipeline(read_frame,
-                                 Detector(stored_settings.get("model", "models/yolo11n.onnx")),
-                                 ByteTracker(),
-                                 self.calibration.counters,
-                                 send=self.sender if self.streaming else None)
+        self.viewport = CameraViewport(read_frame,
+                                       Detector(stored_settings.get("model", "models/yolo11n.onnx")),
+                                       ByteTracker(),
+                                       self.calibration.counters,
+                                       send=self.sender if self.streaming else None)
         self.rows = []
 
     def start(self):
-        self.pipeline.start()
+        self.viewport.start()
 
     def stop(self):
-        self.pipeline.stop()
+        self.viewport.stop()
 
     def bind(self, window):
         self.data = window.PeoplePageData
@@ -49,7 +69,7 @@ class CameraPage:
         self.data.can_swap = len(camera_service.devices()) > 1
         self._push_rows(force=True)
 
-        self.data.request_camera_frame = self.request_camera_frame
+        self.viewport.bind(window, self._push_rows)
         self.data.toggle_stream = self.toggle_stream
         self.data.reset_counts = self.reset_counts
         self.data.open_calibration = self.open_calibration
@@ -62,15 +82,9 @@ class CameraPage:
         self.data.swap_camera = self.swap_camera
         window.AppData.swap_cameras = self.swap_camera
 
-    def request_camera_frame(self):
-        frame = self.pipeline.latest_frame
-        if frame is not None:
-            self.data.camera_frame = slint.Image.load_from_array(np.ascontiguousarray(frame[:, :, ::-1]))
-        self._push_rows()
-
     def toggle_stream(self):
         self.streaming = not self.streaming
-        self.pipeline.send = self.sender if self.streaming else None
+        self.viewport.send = self.sender if self.streaming else None
         self.data.streaming = self.streaming
 
     def reset_counts(self):
@@ -81,13 +95,11 @@ class CameraPage:
     def open_calibration(self):
         self.data.calibrating = True
         self.calibration.selected = 0 if self.calibration.counters else -1  # 直接选第一条，省得先点一下
-        self.pipeline.fps = CALIBRATION_FPS
         self._push_calibration()
 
     def close_calibration(self):
         self.calibration.save()
         self.data.calibrating = False
-        self.pipeline.fps = PEOPLE_FPS
         self._push_rows()
 
     def room_clicked(self, device_id):
@@ -119,18 +131,19 @@ class CameraPage:
             return
         self.device = devices[(devices.index(self.device) + 1) % len(devices)]
         self.calibration = Calibration(self.device)
-        self.pipeline.read_frame = sources.camera(devices.index(self.device))
-        self.pipeline.counters = self.calibration.counters
-        self.pipeline.tracker = ByteTracker()  # 换了画面，旧轨迹全作废
+        self.viewport.read_frame = lambda idx=devices.index(self.device): camera_service.get_frame(idx)
+        self.viewport.counters = self.calibration.counters
+        self.viewport.tracker = ByteTracker()  # 换了画面，旧轨迹全作废
+        self.viewport.tracks = []
         self.data.camera = self.device
         self._push_calibration()
 
     def _source(self):
         video = stored_settings.get("video", "")
         if video:  # 离线和真摄像头各存各的线：画面不一样，本来就不该共用
-            return video, sources.video(video)
+            return video, video_source(video)
         camera_service.start()
-        return "/dev/video0", sources.camera(0)
+        return "/dev/video0", lambda: camera_service.get_frame(0)
 
     def _sender(self):
         url = stored_settings.get("image_feed_udp_url", "")

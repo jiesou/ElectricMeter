@@ -5,7 +5,7 @@
 
 ---
 
-## 1. 存储分层
+## 存储分层
 
 HA 是**三层**：原始 `states` → 短期 `statistics_short_term`（5 分钟）→ 长期 `statistics`（1 小时）。
 `statistics_meta` 是两张统计表共享的元数据（相当于 "entity 注册表"）；`statistics_runs` 记录每次编译的批次时间戳。
@@ -38,14 +38,14 @@ HA 是**三层**：原始 `states` → 短期 `statistics_short_term`（5 分钟
 `statistics` 的 `duration = timedelta(hours=1)`、`statistics_short_term` 的 `duration = timedelta(minutes=5)` 写在**类属性**上（`db_schema.py:699/717`），后续所有代码用 `table.duration` 泛化，因此两张表必须同构。
 
 **为什么要拆两张表**（不是一张加 `type` 列）：
-1. **粒度语义不同**——`sum`/`state` 在 5 分钟桶里是"当时累计值"，在小时桶里是"该小时最后一个累计值"，小时桶的 `sum` 来自当小时**最后一个** 5 分钟桶（见 §2），不是 12 个桶相加。混在一张表会让"取最新一条"逻辑出现歧义。
+1. **粒度语义不同**——`sum`/`state` 在 5 分钟桶里是"当时累计值"，在小时桶里是"该小时最后一个累计值"，小时桶的 `sum` 来自当小时**最后一个** 5 分钟桶（见 「写入策略」），不是 12 个桶相加。混在一张表会让"取最新一条"逻辑出现歧义。
 2. **保留期不同**——短期表跟 `purge_keep_days` 一起删，长期表永不删，必须能独立 DELETE（`purge.py:96` 只 SELECT `StatisticsShortTerm`）。
 3. **唯一索引不同**——5 分钟桶起点与整点会撞在同一时间戳，同表就得再加一列进复合主键。
 4. **热冷分离**——短期表只有几 MB 常驻 page cache，每 5 分钟写；小时表只写不更新，且查询走 `ix_statistics_statistic_id_start_ts` 唯一索引。
 
 ---
 
-## 2. 写入策略
+## 写入策略
 
 **HA 是"每次状态变化写一行 states"，聚合是离线的、周期性的、幂等的。** 三个阶段：
 
@@ -128,7 +128,7 @@ state_changed 事件 ──► states 表（每事件一行，5s 批量 commit�
 
 ---
 
-## 3. 三种 long-term statistics 类型
+## 三种 long-term statistics 类型
 
 | 类型 | 字段 | 定义 | 典型场景 |
 |---|---|---|---|
@@ -143,11 +143,11 @@ state_changed 事件 ──► states 表（每事件一行，5s 批量 commit�
 | **瞬时功率 (W)** | `measurement` | `{mean, min, max}` + ARITHMETIC | 时间加权均值；min/max 直接给柱状图的包络 |
 | **累计电量 (kWh)** | `total_increasing` | `{sum}` | `sum` 是累计值，做差得时段 kWh；写 `change` 列 |
 | **断路器通断** | *（无对应 class）* | 用 `last`（`state` 列）或 `states.last_changed_ts` 时间线 | **不能**用 `total_increasing`——开→关会让读数下降，HA 会抛 `warn_dip` 警告 |
-| 若同时要"今日/本周/本月" | — | 长期表永远存小时桶，日/周/月由查询时 reduce | 见 §7 |
+| 若同时要"今日/本周/本月" | — | 长期表永远存小时桶，日/周/月由查询时 reduce | 见 「HA 对外暴露的统计查询接口」 |
 
 ---
 
-## 4. 保留与清理
+## 保留与清理
 
 | 配置 | 默认 | 位置 |
 |---|---|---|
@@ -174,7 +174,7 @@ state_changed 事件 ──► states 表（每事件一行，5s 批量 commit�
 
 ---
 
-## 5. 更简单的替代方案？（只有 SQLite，1~5 秒采样，保留 30 天）
+## 更简单的替代方案？（只有 SQLite，1~5 秒采样，保留 30 天）
 
 基准：20 entity × 5 s/样本 × 30 天。
 
@@ -202,7 +202,7 @@ state_changed 事件 ──► states 表（每事件一行，5s 批量 commit�
 
 ---
 
-## 6. 累计电量表（monotonic meter）的特殊处理
+## 累计电量表（monotonic meter）的特殊处理
 
 ### HA 的对应概念：`state_class`
 
@@ -240,7 +240,7 @@ last_reset = <检测到 reset 的时刻>
 
 ---
 
-## 7. HA 对外暴露的统计查询接口
+## HA 对外暴露的统计查询接口
 
 **重要更正：HA 早已没有 `/api/statistics/period` 和 `/api/statistics/during_period` 这两个 REST 端点。** 在 `core@89f7f5d` 的 `components/api/` 下 grep 不到任何 statistics view，官方 REST API 文档（2026-08 版）也完全没有这两个路径。统计查询**只走 WebSocket**。
 

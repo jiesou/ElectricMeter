@@ -17,8 +17,12 @@ export struct LineLabel {
 
 export global PeoplePageData {
     in-out property<image> camera-frame;
-    in-out property<bool> running: true;
-    in-out property<[RoomRow]> rooms;
+    in-out property<[RoomRow]> rooms: [
+        { id: "esp-301", name: "301", in-count: 12, out-count: 9, net: 3, lined: true, selected: false },
+        { id: "esp-302", name: "302", in-count: 5, out-count: 5, net: 0, lined: true, selected: true },
+        { id: "esp-303", name: "303", in-count: 0, out-count: 0, net: 0, lined: false, selected: false },
+        { id: "esp-304", name: "304", in-count: 31, out-count: 27, net: 4, lined: true, selected: false },
+    ];
     in-out property<[LineLabel]> labels;
     // 选中判定线的两端（归一化坐标），把手就画在这
     in-out property<float> ax: 0;
