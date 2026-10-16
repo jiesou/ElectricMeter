@@ -212,3 +212,50 @@ test("netCount 服务器不拿 inCount-outCount 去算：大屏说多少就是�
   await d.setup();
   expect(table("esp-110").entities.get("people")).toMatchObject({ netCount: 4 });
 });
+
+test("人数是替房间报的：报一次就下发到那间房自己的设备", async () => {
+  const sent: string[] = [];
+  await hub.connect("esp-301", fakeWs((m) => sent.push(m)), "10.0.0.1");
+  await hub.connect("bigscreen", fakeWs(), "10.0.0.2");
+  await hub.handleMessage(
+    "bigscreen",
+    JSON.stringify({
+      type: "pub_entities",
+      entities: [
+        {
+          id: "people",
+          name: "人数",
+          type: "people-counter",
+          inCount: 3,
+          outCount: 1,
+          netCount: 2,
+          device_id: "esp-301",
+        },
+      ],
+    }),
+  );
+  expect(sent.map((m) => JSON.parse(m))).toMatchObject([
+    { type: "pub_entities", entities: [{ id: "people", netCount: 2 }] },
+  ]);
+});
+
+test("刚连上就把当前人数补给它，不用等下一个人跨线", async () => {
+  await hub.connect("esp-302", fakeWs(), "10.0.0.1");
+  await hub.connect("bigscreen", fakeWs(), "10.0.0.2");
+  await hub.handleMessage(
+    "bigscreen",
+    JSON.stringify({
+      type: "pub_entities",
+      entities: [
+        { id: "people", name: "人数", type: "people-counter", inCount: 5, outCount: 0, netCount: 5, device_id: "esp-302" },
+      ],
+    }),
+  );
+  await hub.disconnect("esp-302");
+
+  const sent: string[] = [];
+  await hub.connect("esp-302", fakeWs((m) => sent.push(m)), "10.0.0.1");
+  expect(sent.map((m) => JSON.parse(m))).toMatchObject([
+    { type: "pub_entities", entities: [{ id: "people", netCount: 5 }] },
+  ]);
+});

@@ -91,6 +91,9 @@ handlers.push(async (device, _reply, m) => {
       ts: e.ts ?? old?.ts,
     };
     target.entities.set(e.id, row);
+    // 人数是替房间报的：那间房自己的设备要能看到自己的数
+    if (row.type === "people-counter" && device_id !== device.id)
+      sendTo(device_id, { type: "pub_entities", ts: now(), entities: [row] });
     await db.entity.upsert({
       where: { device_id_id: { device_id, id: e.id } },
       create: row,
@@ -135,7 +138,7 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
     device.lastSeen = now();
   } else {
     // 设备名由服务端分配，新设备先拿 id 顶
-    devices.set(device_id, {
+    device = {
       id: device_id,
       name: device_id,
       ip,
