@@ -3,7 +3,6 @@ import type { ChartData, ChartOptions } from "chart.js";
 import {
   CategoryScale,
   Chart,
-  Filler,
   LineController,
   LineElement,
   LinearScale,
@@ -23,7 +22,6 @@ Chart.register(
   PointElement,
   LinearScale,
   CategoryScale,
-  Filler,
   Tooltip,
 );
 
@@ -52,9 +50,8 @@ const chartData = computed<ChartData<"line">>(() => {
       return {
         label: s.name,
         data: labels.map((ts) => byTs.get(ts) ?? null),
-        fill: "stack",
         borderColor: color,
-        backgroundColor: color + "33",
+        backgroundColor: color,
         borderWidth: 1.5,
         pointRadius: 0,
       };
@@ -64,7 +61,22 @@ const chartData = computed<ChartData<"line">>(() => {
 
 const count = computed(() => chartData.value.labels?.length ?? 0);
 
-const options: ChartOptions<"line"> = {
+/** Y 轴取所有回路的最低/最高点，两端都留在图里；固定从 0 起会把波动压平 */
+const bounds = computed<{ min?: number; max?: number }>(() => {
+  const values = chartData.value.datasets
+    .flatMap((d) => d.data)
+    .filter((v): v is number => typeof v === "number");
+  if (!values.length) return {};
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const pad = Math.max((high - low) * 0.05, 1);
+  return {
+    min: Math.max(0, Math.round(low - pad)),
+    max: Math.round(high + pad),
+  };
+});
+
+const options = computed<ChartOptions<"line">>(() => ({
   responsive: true,
   maintainAspectRatio: false,
   animation: false,
@@ -89,7 +101,6 @@ const options: ChartOptions<"line"> = {
   },
   scales: {
     x: {
-      stacked: true,
       grid: { display: false },
       border: { color: BORDER },
       ticks: {
@@ -103,14 +114,13 @@ const options: ChartOptions<"line"> = {
       },
     },
     y: {
-      stacked: true,
-      beginAtZero: true,
+      ...bounds.value,
       grid: { color: BORDER },
       border: { display: false },
       ticks: { color: MUTED, font: { size: 11 }, maxTicksLimit: 4 },
     },
   },
-};
+}));
 
 /** 时间只在这里出现：数据层一律秒级时间戳 */
 function clock(ts: number) {
