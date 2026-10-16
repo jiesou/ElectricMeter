@@ -3,8 +3,10 @@ import type { Entity } from "@em/shared";
 import { computed, nextTick, ref } from "vue";
 import type { Room } from "../api.ts";
 import { rename, remove } from "../data.ts";
+import { circuitVar } from "../color.ts";
 import { energy } from "../format.ts";
 import MeterCard from "./MeterCard.vue";
+import PeopleCounter from "./PeopleCounter.vue";
 import PowerGauge from "./PowerGauge.vue";
 import RoomChart from "./RoomChart.vue";
 import SwitchCard from "./SwitchCard.vue";
@@ -17,6 +19,10 @@ const hasMeter = computed(() =>
 );
 const switches = computed(() =>
   props.room.entities.filter((e) => e.type === "switch"),
+);
+// 人数是大屏替这间房报的，跟房里在不在线无关
+const counter = computed(() =>
+  props.room.entities.find((e) => e.type === "people-counter"),
 );
 
 // 闸只画不接：点一下只切本地状态，刷新就回到接口的值
@@ -101,6 +107,7 @@ async function del() {
         <PowerGauge :power-w="room.power" thin />
         <span class="energy num">累计 {{ energy(room.energy) }}</span>
       </div>
+      <!-- 人数是大屏替这间房报的，排在总闸右边 -->
       <button
         class="track"
         :class="{ on: masterOn }"
@@ -110,6 +117,7 @@ async function del() {
       >
         <span class="knob" />
       </button>
+      <PeopleCounter v-if="counter" :entity="counter" />
     </div>
 
     <RoomChart v-if="hasMeter" :room="room" />
@@ -119,6 +127,7 @@ async function del() {
         v-for="e in room.entities.filter((x) => x.type === 'meter')"
         :key="e.id"
         :entity="e"
+        :style="{ '--circuit': circuitVar(e.id, room.entities) }"
       />
       <SwitchCard
         v-for="e in switches"
@@ -127,6 +136,7 @@ async function del() {
         :online="room.online"
         :on="isOn(e)"
         :reported="reported(e)"
+        :style="{ '--circuit': circuitVar(e.id, room.entities) }"
         @toggle="toggle(e)"
       />
     </div>
@@ -210,11 +220,12 @@ async function del() {
   background: var(--warn-soft);
 }
 
-/* 房级行：左总表、右总闸，高 140px，在曲线正上方 */
+/* 房级行：左总表、中间总闸、右人数，高 140px，在曲线正上方 */
 .master {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   height: 140px;
 }
 
@@ -252,12 +263,13 @@ async function del() {
   height: 46px;
   border-radius: 50%;
   background: var(--card);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.25);
+  box-shadow: var(--shadow);
   transition: transform 200ms ease-out;
 }
 
 .track.on {
-  background: var(--green);
+  /* 跟房级总表一个颜色 */
+  background: var(--primary);
 }
 
 .track.on .knob {
