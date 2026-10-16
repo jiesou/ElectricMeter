@@ -20,7 +20,7 @@ app.get(
         void connect(device_id, ws, raw?.remoteAddress ?? "");
       },
       onMessage(e) {
-        void handleMessage(device_id, String(e.data));
+        handleMessage(device_id, String(e.data)).catch(console.error);
       },
       onClose() {
         disconnect(device_id);

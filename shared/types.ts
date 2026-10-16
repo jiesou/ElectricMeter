@@ -54,7 +54,7 @@ export type WSMessageHandler = (
 ) => void;
 
 /* 必要应用层心跳 */
-export const ALIVE = 30;
+export const ALIVE = 3;
 
 export interface PubAliveMessage extends WSMessage {
   type: "pub_alive";

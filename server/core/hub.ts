@@ -142,3 +142,24 @@ export async function handleMessage(device_id: string, raw: string) {
   for (const handle of handlers)
     await handle(device, (r) => device.ws?.send(JSON.stringify(r)), m);
 }
+
+const HEARTBEAT_TIMEOUT = 10; // 心跳超时（秒）：板子 3s 一拍，10s 没动静就当它失联
+const HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
+
+/** 断电断网时 TCP 不会断，光等 onClose 是等不到的，得自己看表 */
+export function checkOffline() {
+  for (const [id, d] of devices) {
+    if (!d.ws || now() - d.lastSeen <= HEARTBEAT_TIMEOUT) continue;
+    console.log(`设备 ${id} 失联 ${now() - d.lastSeen}s，断开`);
+    try {
+      d.ws.close(4000, "heartbeat timeout");
+    } catch {
+      // 关不掉就算了，下面照样标离线
+    }
+    disconnect(id);
+  }
+}
+
+export function startHeartbeat() {
+  setInterval(checkOffline, HEARTBEAT_CHECK_INTERVAL);
+}

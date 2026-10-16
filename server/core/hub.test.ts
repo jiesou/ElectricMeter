@@ -59,6 +59,24 @@ test("应用层心跳收到 ack_alive", async () => {
   expect(sent.map((m) => JSON.parse(m).type)).toEqual(["ack_alive"]);
 });
 
+test("失联判定：10s 没消息就当它掉线，连接也关掉", async () => {
+  const closed: number[] = [];
+  await hub.connect(
+    "esp-111",
+    { send: () => {}, close: (c: number) => closed.push(c) } as never,
+    "10.0.0.1",
+  );
+  const d = await fakeDevice("esp-112");
+  await d.setup();
+
+  table("esp-111").lastSeen = now() - 11; // 断电断网，TCP 还挂着
+  hub.checkOffline();
+
+  expect(closed).toEqual([4000]);
+  expect(table("esp-111").online).toBe(false);
+  expect(table("esp-112").online).toBe(true); // 刚说过话的别碰
+});
+
 test("设备连上就落库：名字是服务端分配的", async () => {
   const d = await fakeDevice("esp-101");
   await d.setup();
