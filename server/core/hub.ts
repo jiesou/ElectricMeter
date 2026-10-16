@@ -31,6 +31,9 @@ for (const d of await db.device.findMany({
           state: e.state ?? undefined,
           powerW: e.powerW ?? undefined,
           energyKwh: e.energyKwh ?? undefined,
+          inCount: e.inCount ?? undefined,
+          outCount: e.outCount ?? undefined,
+          netCount: e.netCount ?? undefined,
           ts: e.ts ?? undefined,
         },
       ] as const,
@@ -53,28 +56,34 @@ handlers.push((_device, reply, m) => {
 /**
  * 板子自己有什么。连上把每个实体的 name/type 报一遍，之后按字段部分更新，没提到的字段保持原样。
  * 报来的都写回库，所以内存这张表始终就是库那张表。
+ * 每条实体算哪台设备由报文里的 device_id 说了算，没带就用这条连接的身份 —— 大屏就是这样替各台设备报数的。
  */
 handlers.push(async (device, _reply, m) => {
   if (m.type !== "pub_entities") return;
-  const online = devices.get(device.id);
-  if (!online) return;
   for (const e of (m as EntitiesMessage).entities) {
-    const old = online.entities.get(e.id);
+    // 实体自己指了设备就听它的，没指就报在这条连接的设备名下
+    const device_id = e.device_id ?? device.id;
+    const target = devices.get(device_id);
+    if (!target) throw new Error(`实体 ${e.id} 报了不存在的设备: ${device_id}`);
+    const old = target.entities.get(e.id);
     const type = e.type ?? old?.type;
     if (!type) continue; // 没申报过身份，这条读数丢掉
     const row = {
-      device_id: device.id,
+      device_id,
       id: e.id,
       name: e.name ?? old?.name ?? e.id,
       type,
       state: e.state ?? old?.state,
       powerW: e.powerW ?? old?.powerW,
       energyKwh: e.energyKwh ?? old?.energyKwh,
+      inCount: e.inCount ?? old?.inCount,
+      outCount: e.outCount ?? old?.outCount,
+      netCount: e.netCount ?? old?.netCount,
       ts: e.ts ?? old?.ts,
     };
-    online.entities.set(e.id, row);
+    target.entities.set(e.id, row);
     await db.entity.upsert({
-      where: { device_id_id: { device_id: device.id, id: e.id } },
+      where: { device_id_id: { device_id, id: e.id } },
       create: row,
       update: {
         name: row.name,
@@ -82,6 +91,9 @@ handlers.push(async (device, _reply, m) => {
         state: row.state,
         powerW: row.powerW,
         energyKwh: row.energyKwh,
+        inCount: row.inCount,
+        outCount: row.outCount,
+        netCount: row.netCount,
         ts: row.ts,
       },
     });

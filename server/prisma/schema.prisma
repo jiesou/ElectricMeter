@@ -25,6 +25,9 @@ model Entity {
   state      Boolean?
   powerW     Float?
   energyKwh  Float?
+  inCount    Int?
+  outCount   Int?
+  netCount   Int?
   ts         Int?
   device     Device          @relation(fields: [device_id], references: [id], onDelete: Cascade)
   history    EntityHistory[]

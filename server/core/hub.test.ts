@@ -16,10 +16,14 @@ const FULL: Entity[] = [
   },
 ];
 
+/** 假板子：往上报就完事，服务器现在没有下行消息 */
+const fakeWs = (send: (m: string) => void = () => {}) =>
+  ({ send, close: () => {} }) as never;
+
 /** 假下位机：只管往上报，服务器现在没有下行消息 */
 async function fakeDevice(id: string, full = FULL) {
-  const open = () =>
-    hub.connect(id, { send: () => {}, close: () => {} } as never, "10.0.0.1");
+  const ws = fakeWs();
+  const open = () => hub.connect(id, ws, "10.0.0.1");
   const post = (type: string, m: object) =>
     hub.handleMessage(id, JSON.stringify({ type, ...m }));
   const stamped = (entities: Entity[], ts: number) =>
@@ -49,11 +53,8 @@ beforeEach(() => hub.devices.clear());
 
 test("应用层心跳收到 ack_alive", async () => {
   const sent: string[] = [];
-  await hub.connect(
-    "esp-107",
-    { send: (m: string) => sent.push(m), close: () => {} } as never,
-    "10.0.0.1",
-  );
+  const ws = fakeWs((m) => sent.push(m));
+  await hub.connect("esp-107", ws, "10.0.0.1");
   await hub.handleMessage("esp-107", JSON.stringify({ type: "pub_alive" }));
   expect(sent.map((m) => JSON.parse(m).type)).toEqual(["ack_alive"]);
 });
@@ -115,4 +116,81 @@ test("读数报什么就是什么：电量不做加工", async () => {
   expect(table("esp-106").entities.get("light-meter")!.energyKwh).toBe(10);
   await d.report([{ id: "light-meter", energyKwh: 0.5 }]); // 板子重启报了 0.5，服务器照收
   expect(table("esp-106").entities.get("light-meter")!.energyKwh).toBe(0.5);
+});
+
+test("实体自己带 device_id：算到那台设备名下，不跟连接方混在一起", async () => {
+  await (await fakeDevice("esp-301")).setup(); // 301 得先存在
+  await (await fakeDevice("esp-302")).setup();
+  const ws = fakeWs();
+  await hub.connect("bigscreen", ws, "10.0.0.2"); // 大屏随便报个身份
+  await hub.handleMessage(
+    "bigscreen",
+    JSON.stringify({
+      type: "pub_entities",
+      entities: [
+        {
+          id: "people",
+          name: "人数",
+          type: "people-counter",
+          inCount: 12,
+          outCount: 9,
+          netCount: 3,
+          device_id: "esp-301",
+        },
+        { id: "people", name: "人数", type: "people-counter", inCount: 5, outCount: 2, netCount: 3, device_id: "esp-302" },
+      ],
+    }),
+  );
+  expect(table("esp-301").entities.get("people")).toMatchObject({
+    inCount: 12,
+    outCount: 9,
+    netCount: 3,
+  });
+  expect(table("esp-302").entities.get("people")).toMatchObject({ inCount: 5, netCount: 3 });
+  expect(table("bigscreen").entities.size).toBe(0); // 报的全是别人家的，自己名下啥也没有
+});
+
+test("报了不存在的设备：直接抛，不凭空把它建出来", async () => {
+  const ws = fakeWs();
+  await hub.connect("bigscreen", ws, "10.0.0.2");
+  await expect(
+    hub.handleMessage(
+      "bigscreen",
+      JSON.stringify({
+        type: "pub_entities",
+        entities: [{ id: "people", type: "people-counter", device_id: "esp-9999" }],
+      }),
+    ),
+  ).rejects.toThrow("esp-9999");
+  expect(hub.devices.has("esp-9999")).toBe(false);
+});
+
+test("没带 device_id 就听连接的：表箱照老样子报数", async () => {
+  const d = await fakeDevice("esp-108");
+  await d.setup();
+  expect(table("esp-108").entities.get("light")).toMatchObject({ name: "灯" });
+});
+
+test("人数计数器：inCount / outCount / netCount 跟别的字段一样做部分更新", async () => {
+  const d = await fakeDevice("esp-109", [
+    { id: "people", name: "人数", type: "people-counter", inCount: 0, outCount: 0, netCount: 0 },
+  ]);
+  await d.setup();
+  await d.report([{ id: "people", inCount: 7, netCount: 7 }]);
+  expect(table("esp-109").entities.get("people")).toMatchObject({
+    inCount: 7,
+    netCount: 7,
+    outCount: 0, // 没重发，还是 0
+    name: "人数",
+  });
+  await d.report([{ id: "people", inCount: 0, outCount: 0, netCount: 0 }]); // 大屏点清零
+  expect(await inDb("esp-109", "people")).toMatchObject({ inCount: 0, netCount: 0 });
+});
+
+test("netCount 服务器不拿 inCount-outCount 去算：大屏说多少就是多少", async () => {
+  const d = await fakeDevice("esp-110", [
+    { id: "people", name: "人数", type: "people-counter", inCount: 5, outCount: 2, netCount: 4 },
+  ]);
+  await d.setup();
+  expect(table("esp-110").entities.get("people")).toMatchObject({ netCount: 4 });
 });

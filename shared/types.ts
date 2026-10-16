@@ -2,12 +2,16 @@
 
 export interface Entity {
   id: string;
+  // 这个实体算在哪台设备名下：报文的填了听报文的，没填就用这条连接的 device_id
   device_id?: string;
   name?: string;
-  type?: "switch" | "meter";
-  state?: boolean;
-  powerW?: number;
-  energyKwh?: number;
+  type?: "switch" | "meter" | "people-counter";
+  state?: boolean; // switch：开关 on / off
+  powerW?: number; // meter：电表瞬时功率
+  energyKwh?: number; // meter：电表累计电量，类似 Home Assistant total_increasing
+  inCount?: number; // people-counter：进
+  outCount?: number; // people-counter：出
+  netCount?: number; // people-counter：净，大屏说多少就是多少，服务器不拿 in-out 去算
   ts?: number; // 实例存在的时间点，可以用来提供最后一次上报的时间（秒级时间戳）
 }
 
@@ -20,6 +24,13 @@ export interface Meter extends Entity {
   type: "meter";
   powerW: number;
   energyKwh: number;
+}
+
+export interface PeopleCounter extends Entity {
+  type: "people-counter";
+  inCount: number;
+  outCount: number;
+  netCount: number;
 }
 
 export interface Device {
