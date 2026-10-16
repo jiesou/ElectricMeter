@@ -51,7 +51,7 @@ test("不给 device：所有设备的实体", async () => {
   );
 });
 
-test("实体 SSE 立即发送完整快照，之后每秒刷新", async () => {
+test("实体 SSE：连上先给一份全量，之后有更新就推", async () => {
   await device("esp-206", [
     { id: "light", name: "灯", type: "switch", state: false },
   ]);
@@ -75,7 +75,7 @@ test("实体 SSE 立即发送完整快照，之后每秒刷新", async () => {
     );
     const started = Date.now();
     expect(await read()).toMatchObject([{ id: "light", state: true }]);
-    expect(Date.now() - started).toBeGreaterThanOrEqual(900);
+    expect(Date.now() - started).toBeLessThan(500); // 更新一来就推，不等下一轮
   } finally {
     await reader.cancel();
   }

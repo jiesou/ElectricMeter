@@ -15,6 +15,14 @@ export const devices = new Map<
   Device & { ws?: WSContext; entities: Map<string, Entity> }
 >();
 
+/** 有读数进来就喊一声：SSE 这类只读的推流端各自挂上来 */
+export const onUpdate: (() => void)[] = [];
+
+/** 给某台设备发一条报文。它不在线就丢掉，连上时会把当前的数补给它 */
+export function sendTo(device_id: string, m: WSMessage) {
+  devices.get(device_id)?.ws?.send(JSON.stringify(m));
+}
+
 // 服务器启动：库里的设备与实体全读进来，之后只有连接和读数在变
 for (const d of await db.device.findMany({
   orderBy: { id: "asc" },
@@ -98,11 +106,14 @@ handlers.push(async (device, _reply, m) => {
       },
     });
   }
+  for (const notify of onUpdate) notify();
+});
+
+/** 设备干完活回执：回执里的 state 就是实体现在的状态，写回内存与库，顺手推给网页 */
 });
 
 export async function connect(device_id: string, ws: WSContext, ip = "") {
   // 先登记连接再写库：板子的第一条消息可能比这次写库更早到
-  const device = devices.get(device_id);
   if (device) {
     device.ip = ip;
     device.online = true;
@@ -118,13 +129,22 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
       lastSeen: now(),
       ws,
       entities: new Map(),
-    });
+    };
+    devices.set(device_id, device);
   }
   await db.device.upsert({
     where: { id: device_id },
     create: { id: device_id, name: device_id, ip },
     update: { ip },
   });
+
+  // 刚连上先把当前的人数补给它，不然要等下一个人跨线才有数
+  const people = [...device.entities.values()].filter(
+    (e) => e.type === "people-counter",
+  );
+  if (people.length)
+    sendTo(device_id, { type: "pub_entities", ts: now(), entities: people });
+  for (const notify of onUpdate) notify();
 }
 
 export function disconnect(device_id: string) {
@@ -132,6 +152,7 @@ export function disconnect(device_id: string) {
   if (!device) return;
   device.online = false;
   device.ws = undefined;
+  for (const notify of onUpdate) notify();
 }
 
 export async function handleMessage(device_id: string, raw: string) {

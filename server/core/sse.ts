@@ -1,25 +1,27 @@
 import type { Context } from "hono";
+import { onUpdate } from "./hub.ts";
 
+/** 连上先给一份全量，之后有读数进来才推一次 */
 export function streamSnapshot(c: Context, getSnapshot: () => unknown) {
-  let timer: ReturnType<typeof setInterval> | undefined;
   const encoder = new TextEncoder();
+  let push = () => {};
   const body = new ReadableStream({
     start(controller) {
-      const send = () => {
+      push = () => {
         try {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify(getSnapshot())}\n\n`),
           );
         } catch {
-          if (timer) clearInterval(timer);
+          onUpdate.splice(onUpdate.indexOf(push), 1);
         }
       };
 
-      send();
-      timer = setInterval(send, 1000);
+      push();
+      onUpdate.push(push);
     },
     cancel() {
-      if (timer) clearInterval(timer);
+      onUpdate.splice(onUpdate.indexOf(push), 1);
     },
   });
 
