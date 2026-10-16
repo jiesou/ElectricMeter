@@ -33,7 +33,7 @@
   - `types.ts` —— 数据模型与协议定义，用户明确定死
 - **server/**
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
-  - `core/hub.ts` —— 相当于老项目的 ClientManager：所有设备的内存表（启动从库里全读）+ `WSMessageHandler` 数组（谁关心谁注册）；读数报来就写回库
+  - `core/hub.ts` —— 相当于老项目的 ClientManager：所有设备的内存表（启动从库里全读）+ `WSMessageHandler` 数组（谁关心谁注册）；读数报来就写回库。**实体算哪间房由报文里的 `device_id` 说了算**，没带才用连接的 —— 大屏就是连上去替各间房报数的
   - `routes/api.ts` —— API 挂载点 + `/health`
   - `routes/devices.ts` / `routes/entities.ts` / `routes/rooms.ts` —— REST 快照与每秒一次的 SSE 全量快照
   - `core/sse.ts` —— 通用快照 SSE
@@ -41,6 +41,7 @@
   - `core/db.ts`
   - `*.test.ts`
   - `simulator/esp32.ts` —— 下位机模拟器（实体增量上报 + 应用层心跳）
+  - `simulator/bigscreen.ts` —— 大屏模拟器：替几间房报人数（`DEVICE_ID` / `ROOMS` / `INTERVAL`）
   - `core/udp_camera.ts` —— UDP 图传接收：8 字节小端包头分片、重组 JPEG（照老项目 `UdpCameraServer.ts`）
   - `routes/cv.ts` —— `/api/cv/stream` MJPEG 流，把最新一帧推给浏览器 / `<img>`
 - **cli/**（`em`，commander + picocolors + cli-table3；选型依据见 `.agents/notes/research/CLI框架选型.md`）
@@ -49,7 +50,7 @@
   `--host` / `EM_HOST` 指服务器。通断、历史的 CLI 未做。`cli/e2e.test.ts` 起真 server 端到端验收
 - **slintui/**（香橙派大屏，Python + Slint；壳照老板端 `OPi5-RK3588-ElectricDrive/slintui`）
   - `main.py` —— 只剩装配：起两个流，把窗口和页面绑起来；tab 切换只起停人数页（推理贵），用电流常驻；`settings.json` 配服务器地址 / 模型 / 视频源 / 图传地址 / `cameras[]` 判定线
-  - `people/` —— 人数监控业务（业务一个包，照老板端样式）：`page.py` 页面装配 + UI 动作 + 两种帧来源（视频文件 / 摄像头，只留最新帧）、`viewport.py` 推理线程推完一帧接着推下一帧（无帧率目标），UI 16ms 定时拿最新帧画上最近的框独立刷新——框可以滞后，帧率必须高，timing log 也在这、`calibration.py` 判定线标定（一台机位一组线、每条线绑一间客房 `device_id`、命中与拖动、完成时落盘）
+  - `people/` —— 人数监控业务（业务一个包，照老板端样式）：`page.py` 页面装配 + UI 动作 + 两种帧来源（视频文件 / 摄像头，只留最新帧）、`viewport.py` 推理线程推完一帧接着推下一帧（无帧率目标），UI 16ms 定时拿最新帧画上最近的框独立刷新——框可以滞后，帧率必须高，timing log 也在这、`calibration.py` 判定线标定（一台机位一组线、每条线绑一间客房 `device_id`、命中与拖动、完成时落盘）、`reporter.py` 一条 WS 把人数推给服务器（只管上报）
   - `camera_service.py` —— 共享基建（照老项目）：扫 `/dev/video*` 按 USB 物理端口去重，每颗摄像头一个抓帧线程只留最新帧
   - `vision/` —— `detector.py`（YOLO11n 人体检测，ONNX 本机 / RKNN 板子双后端）、`tracker.py`（ByteTracker，带 track id）、`counter.py`（判定线跨线计数：死区防抖、换线清状态，一台机位可挂多条）
   - `power.py` —— 客房管理页：接收 `/api/rooms/stream` 客房快照，`Home` 键切 mock（`mock.py` 固定数据）
@@ -58,7 +59,7 @@
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**（民宿用电管理网页，Vue 3 + TS + Vite + Vue Router，普通 CSS，Bun 装依赖跑）
   - `src/data.ts` 唯一数据注入点（`rooms` / `status` / `mock` + 搜索词），`Home` 切 mock 只在 `App.vue` 挂一次；`api.ts` REST + SSE，`history.ts` 每帧给每个电表 append 一个曲线点（开局查一次 `/api/rooms/:id/history` 回填）
-  - `src/views/` 客房管理（搜索框 + 房卡：手写 SVG 功率表、Chart.js 堆叠曲线、Entity 小卡）/ 视频监控（`<img>` 吃 `/api/cv/stream`）；`src/components/` 放房卡与各类小卡；导航（桌面左栏、窄屏底部 tab）在 `App.vue`
+  - `src/views/` 客房管理（搜索框 + 房卡：手写 SVG 功率表、Chart.js 堆叠曲线、Entity 小卡、第二行中间夹人数 进/出/净）/ 视频监控（`<img>` 吃 `/api/cv/stream`）；`src/components/` 放房卡与各类小卡；导航（桌面左栏、窄屏底部 tab）在 `App.vue`
   - 设计意图见 `.agents/notes/decisions/网页前端设计.md`
 
 > 大屏与感知侧的取舍见 `.agents/notes/decisions/摄像头人数感知.md`；板端 RKNN（RK-fork 去 DFL/后处理 + INT8 量化）与真摄像头**已在香橙派 5 Plus 上实测跑通**。
