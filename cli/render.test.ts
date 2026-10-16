@@ -25,7 +25,7 @@ describe("render", () => {
   });
 
   test("show 详情", () => {
-    expect(view.show(entities[0]!)).toContain("照明");
+    expect(view.show(entities[0]!)).toContain("灯");
     expect(view.show(entities[1]!)).toContain("123.4 W");
   });
 

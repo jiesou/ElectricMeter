@@ -5,17 +5,17 @@ const DEVICE_ID = process.env.DEVICE_ID ?? "esp-301";
 const HOST = process.env.WS ?? "ws://localhost:8080/ws";
 const INTERVAL = Number(process.env.INTERVAL ?? 1000);
 
-type Circuit = "light" | "kettle" | "ac";
+type Circuit = "light" | "kettle" | "dryer";
 const CIRCUITS: { id: Circuit; name: string }[] = [
-  { id: "light", name: "照明" },
+  { id: "light", name: "灯" },
   { id: "kettle", name: "热水壶" },
-  { id: "ac", name: "空调" },
+  { id: "dryer", name: "吹风机" },
 ];
 const id = (c: Circuit, suffix: string) => (suffix ? `${c}-${suffix}` : c);
 
-const relay = { light: false, kettle: true, ac: true };
-const energy = { light: 2.1, kettle: 18.4, ac: 46.2 };
-const power = { light: 0, kettle: 0, ac: 0 };
+const relay = { light: false, kettle: true, dryer: true };
+const energy = { light: 2.1, kettle: 18.4, dryer: 46.2 };
+const power = { light: 0, kettle: 0, dryer: 0 };
 let lastTick = 0;
 let ws: WebSocket | null = null;
 let reportTimer: ReturnType<typeof setInterval> | null = null;
@@ -39,7 +39,7 @@ function sample() {
   if (Math.random() < 0.0075) relay.kettle = !relay.kettle;
   power.light = relay.light ? 55 : 0;
   power.kettle = relay.kettle ? 12 + kettle() : 0;
-  power.ac = relay.ac ? 900 : 0;
+  power.dryer = relay.dryer ? 900 : 0;
 }
 
 const send = (m: WSMessage) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
@@ -63,11 +63,11 @@ function tick() {
   const changed: Entity[] = [];
   for (const e of fresh) {
     const old = snap.get(e.id);
-    const diff: Record<string, unknown> = { id: e.id };
+    const diff: Record<string, unknown> = { id: e.id, ts };
     for (const [key, value] of Object.entries(e)) {
       if (key !== "id" && old?.[key as keyof Entity] !== value) diff[key] = value;
     }
-    if (Object.keys(diff).length > 1) changed.push(diff as unknown as Entity);
+    if (Object.keys(diff).length > 2) changed.push(diff as unknown as Entity);
     snap.set(e.id, e);
   }
   if (changed.length) send({ type: "pub_entities", ts, entities: changed });
@@ -86,10 +86,11 @@ function connect() {
     backoff = 1000;
     lastTick = 0;
     sample();
-    const declared = entities();
+    const ts = now();
+    const declared = entities().map((e) => ({ ...e, ts }));
     snap.clear();
     for (const e of declared) snap.set(e.id, e);
-    send({ type: "pub_entities", ts: now(), entities: declared });
+    send({ type: "pub_entities", ts, entities: declared });
     reportTimer = setInterval(tick, INTERVAL);
     aliveTimer = setInterval(() => send({ type: "pub_alive", ts: now() }), ALIVE * 1000);
     console.log(`${DEVICE_ID} 已接入 ${HOST}`);

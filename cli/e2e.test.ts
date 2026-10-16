@@ -10,7 +10,11 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
   const em = async (args: string[]) => {
     const proc = Bun.spawn(["bun", "index.ts", ...args], {
       cwd: import.meta.dir,
-      env: { ...process.env, EM_HOST: `http://localhost:${server.port}`, NO_COLOR: "1" },
+      env: {
+        ...process.env,
+        EM_HOST: `http://localhost:${server.port}`,
+        NO_COLOR: "1",
+      },
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -23,7 +27,9 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
   };
 
   // 一台真下位机经 WS 接入并上报
-  const ws = new WebSocket(`ws://127.0.0.1:${server.port}/ws?device_id=esp-905`);
+  const ws = new WebSocket(
+    `ws://127.0.0.1:${server.port}/ws?device_id=esp-905`,
+  );
   await new Promise((r) => (ws.onopen = r));
   await delay(50);
   ws.send(
@@ -31,8 +37,14 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
       type: "pub_entities",
       ts: now(),
       entities: [
-        { id: "light", name: "照明", type: "switch", state: true },
-        { id: "ac-meter", name: "空调电表", type: "meter", powerW: 900, energyKwh: 46.2 },
+        { id: "light", name: "灯", type: "switch", state: true },
+        {
+          id: "dryer-meter",
+          name: "吹风机电表",
+          type: "meter",
+          powerW: 900,
+          energyKwh: 46.2,
+        },
       ],
     }),
   );
@@ -49,10 +61,15 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
   expect(list.stdout).toContain("esp-905/light");
   expect(list.stdout).toContain("通电");
 
-  expect((await em(["show", "esp-905/ac-meter"])).stdout).toContain("空调电表");
+  expect((await em(["show", "esp-905/dryer-meter"])).stdout).toContain(
+    "吹风机电表",
+  );
 
   const rooms = JSON.parse((await em(["--json", "rooms"])).stdout);
-  expect(rooms.find((r: any) => r.id === "esp-905")).toMatchObject({ power: 900, energy: 46.2 });
+  expect(rooms.find((r: any) => r.id === "esp-905")).toMatchObject({
+    power: 900,
+    energy: 46.2,
+  });
 
   const bad = await em(["show", "esp-905/nope"]);
   expect(bad.exitCode).toBe(1);
@@ -61,7 +78,11 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
   // watch：SSE 快照流第一帧就应包含刚接入的房间，读到即杀
   const watch = Bun.spawn(["bun", "index.ts", "watch"], {
     cwd: import.meta.dir,
-    env: { ...process.env, EM_HOST: `http://localhost:${server.port}`, NO_COLOR: "1" },
+    env: {
+      ...process.env,
+      EM_HOST: `http://localhost:${server.port}`,
+      NO_COLOR: "1",
+    },
     stdout: "pipe",
   });
   const reader = watch.stdout.getReader();

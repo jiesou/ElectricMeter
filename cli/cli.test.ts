@@ -7,7 +7,11 @@ const server = startStub();
 const em = async (args: string[]) => {
   const proc = Bun.spawn(["bun", "index.ts", ...args], {
     cwd: import.meta.dir,
-    env: { ...process.env, EM_HOST: `http://localhost:${server.port}`, NO_COLOR: "1" },
+    env: {
+      ...process.env,
+      EM_HOST: `http://localhost:${server.port}`,
+      NO_COLOR: "1",
+    },
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -41,7 +45,7 @@ test("devices / entities / show", async () => {
   const list = (await em(["entities", "--device=esp-301"])).stdout;
   expect(list).toContain("esp-301/light");
   expect(list).toContain("通电");
-  expect((await em(["show", "esp-301/light"])).stdout).toContain("照明");
+  expect((await em(["show", "esp-301/light"])).stdout).toContain("灯");
 });
 
 test("未知实体：文案透出，退出码 1", async () => {
@@ -69,14 +73,25 @@ test("连不上服务器：给启动提示", async () => {
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+  const [stderr, exitCode] = await Promise.all([
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   expect(exitCode).toBe(1);
   expect(stderr).toContain("连不上");
 });
 
 test("--help 列出全部命令与全局参数", async () => {
   const out = (await em(["--help"])).stdout;
-  for (const k of ["rooms", "devices", "entities", "show", "watch", "--json", "--host"]) {
+  for (const k of [
+    "rooms",
+    "devices",
+    "entities",
+    "show",
+    "watch",
+    "--json",
+    "--host",
+  ]) {
     expect(out).toContain(k);
   }
 });

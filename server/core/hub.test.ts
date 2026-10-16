@@ -6,7 +6,7 @@ import { now } from "./util.ts";
 
 /** 连上时板子声明自己有什么：一个回路两个实体，开关 + 功率表 */
 const FULL: Entity[] = [
-  { id: "light", name: "照明", type: "switch", state: false },
+  { id: "light", name: "灯", type: "switch", state: false },
   {
     id: "light-meter",
     name: "灯功率",
@@ -71,7 +71,7 @@ test("身份与读数都落库：服务器重启后 load 读得回来", async ()
   await d.setup();
   await d.report([{ id: "light", state: true }]);
   const row = (await inDb("esp-102", "light"))!;
-  expect(row).toMatchObject({ name: "照明", type: "switch", state: true });
+  expect(row).toMatchObject({ name: "灯", type: "switch", state: true });
   expect(row.ts).toBeGreaterThan(0); // 这个读数是几点的
 });
 
@@ -80,7 +80,7 @@ test("增量上报：没提到的字段保持上次的值", async () => {
   await d.setup();
   await d.report([{ id: "light", state: true }]);
   expect(table("esp-103").entities.get("light")).toMatchObject({ state: true });
-  expect(await inDb("esp-103", "light")).toMatchObject({ name: "照明" }); // name 没重发，但还在
+  expect(await inDb("esp-103", "light")).toMatchObject({ name: "灯" }); // name 没重发，但还在
   expect(table("esp-103").entities.get("light-meter")).toMatchObject({
     powerW: 0,
   }); // 别的实体没被碰

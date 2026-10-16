@@ -9,6 +9,13 @@ def switch(name, state):
     return {"name": name, "type": "switch", "state": state, "power": 0, "energy": ""}
 
 
+APPLIANCES = [("灯", 55, 3.42), ("热水壶", 1600, 18.4), ("吹风机", 900, 46.2)]
+
+
+def circuits(state):
+    return [e for name, power, energy in APPLIANCES for e in (meter(f"{name}功率", power, energy), switch(name, state))]
+
+
 def room(name, online, entities):
     meters = [e for e in entities if e["type"] == "meter"]
     return {
@@ -22,13 +29,8 @@ def room(name, online, entities):
 
 
 ROWS = [
-    room("301 电表箱", True, [meter("总表", 1280, 66.75)]),
-    room("302 电表箱", True, [switch("照明", True), switch("插座", False), meter("空调", 900, 46.2)]),
+    room("301 电表箱", True, circuits(True)),
+    room("302 电表箱", True, circuits(True)),
     room("303 电表箱", False, []),
-    room(
-        "304 电表箱",
-        True,
-        [meter(f"回路 {i}", i * 160, i * 1.5) for i in range(1, 9)]
-        + [switch(f"开关 {i}", i % 2 == 0) for i in range(1, 5)],
-    ),
+    room("304 电表箱", True, circuits(False)),
 ]

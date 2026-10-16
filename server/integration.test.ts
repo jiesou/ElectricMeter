@@ -25,7 +25,7 @@ test("端到端：真下位机连上来 → REST 看得见 → 读数落库，�
       type: "pub_entities",
       ts: now(),
       entities: [
-        { id: "light", name: "照明", type: "switch", state: false },
+        { id: "light", name: "灯", type: "switch", state: false },
         {
           id: "light-meter",
           name: "灯功率",
