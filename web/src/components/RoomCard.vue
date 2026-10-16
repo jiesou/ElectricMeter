@@ -11,9 +11,9 @@ import SwitchCard from "./SwitchCard.vue";
 
 const props = defineProps<{ room: Room }>();
 
-/** 房级总表取房里第一块电表；总闸是全房开关的聚合 */
-const master = computed(() =>
-  props.room.entities.find((e) => e.type === "meter"),
+/** 房级总表是服务端算好的全房合计；总闸是全房开关的聚合 */
+const hasMeter = computed(() =>
+  props.room.entities.some((e) => e.type === "meter"),
 );
 const switches = computed(() =>
   props.room.entities.filter((e) => e.type === "switch"),
@@ -97,9 +97,9 @@ async function del() {
     </div>
 
     <div class="master">
-      <div v-if="master" class="master-meter">
-        <PowerGauge :power-w="master.powerW" thin />
-        <span class="energy num">累计 {{ energy(master.energyKwh) }}</span>
+      <div v-if="hasMeter" class="master-meter">
+        <PowerGauge :power-w="room.power" thin />
+        <span class="energy num">累计 {{ energy(room.energy) }}</span>
       </div>
       <button
         class="track"
@@ -112,7 +112,7 @@ async function del() {
       </button>
     </div>
 
-    <RoomChart v-if="master" :room="room" />
+    <RoomChart v-if="hasMeter" :room="room" />
 
     <div v-if="room.entities.length" class="entities">
       <MeterCard
