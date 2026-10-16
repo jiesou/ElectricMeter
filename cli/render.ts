@@ -16,7 +16,8 @@ const stateText = (e: Entity) => {
   return e.powerW === undefined ? pc.gray("—") : watt(e.powerW);
 };
 
-const typeText = (e: Entity) => (e.type === "switch" ? "开关" : e.type === "meter" ? "电表" : pc.gray("—"));
+const typeText = (e: Entity) =>
+  e.type === "switch" ? "开关" : e.type === "meter" ? "电表" : pc.gray("—");
 
 export const online = (ok: boolean) => (ok ? pc.green("在线") : pc.red("离线"));
 
@@ -28,7 +29,13 @@ export function rooms(list: Room[]): string {
   return table(
     ["客房", "ID", "在线", "当前功率", "累计电量"],
     [
-      ...list.map((r) => [r.name || r.id, r.id, online(r.online), r.online ? watt(r.power) : pc.gray("—"), kwh(r.energy)]),
+      ...list.map((r) => [
+        r.name || r.id,
+        r.id,
+        online(r.online),
+        r.online ? watt(r.power) : pc.gray("—"),
+        kwh(r.energy),
+      ]),
       [pc.dim("合计"), "", "", pc.dim(watt(power)), pc.dim(kwh(energy))],
     ],
   );
@@ -57,14 +64,20 @@ export function entities(list: Entity[]): string {
 }
 
 export function show(e: Entity): string {
-  const lines = [`${pc.bold(e.name ?? e.id)}  ${pc.dim(`${e.device_id}/${e.id}`)}`];
+  const lines = [
+    `${pc.bold(e.name ?? e.id)}  ${pc.dim(`${e.device_id}/${e.id}`)}`,
+  ];
   lines.push(`  类型      ${typeText(e)}`);
   if (e.type === "switch") lines.push(`  状态      ${stateText(e)}`);
   if (e.type === "meter") {
-    lines.push(`  当前功率  ${e.powerW === undefined ? pc.gray("—") : watt(e.powerW)}`);
-    lines.push(`  累计电量  ${e.energyKwh === undefined ? pc.gray("—") : kwh(e.energyKwh)}`);
+    lines.push(
+      `  当前功率  ${e.powerW === undefined ? pc.gray("—") : watt(e.powerW)}`,
+    );
+    lines.push(
+      `  累计电量  ${e.energyKwh === undefined ? pc.gray("—") : kwh(e.energyKwh)}`,
+    );
   }
-  if (e.lastUpdate !== undefined) lines.push(`  最后上报  ${stamp(e.lastUpdate)}`);
+  if (e.ts !== undefined) lines.push(`  最后上报  ${stamp(e.ts)}`);
   return lines.join("\n");
 }
 
