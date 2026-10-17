@@ -15,12 +15,13 @@ import slint
 
 
 class CameraViewport:
-    def __init__(self, read_frame, detector, tracker, counters=(), send=None):
+    def __init__(self, read_frame, detector, tracker, counters=(), send=None, counted=None):
         self.read_frame = read_frame
         self.detector = detector
         self.tracker = tracker
         self.counters = counters  # 共用同一个列表：标定页增删判定线这边立刻跟着变
         self.send = send
+        self.counted = counted  # 有人跨线就喊一声，上报端等着这个
         self.tracks = []  # 最近一次推理的框，显示时复用（对应老项目 latest_result）
         self._running = False
         self._lock = threading.Lock()
@@ -45,18 +46,33 @@ class CameraViewport:
                 t = self.detector.timing
                 print(f"[People] Timing (ms): preprocess={t['preprocess']:.2f} inference={t['inference']:.2f} "
                       f"postprocess={t['postprocess']:.2f} total={t['total']:.2f}")
+                crossed = False
                 for counter in self.counters:
-                    counter.update(self.tracks, frame.shape)
+                    if counter.update(self.tracks, frame.shape):
+                        crossed = True
+            if crossed and self.counted:
+                self.counted()
             if self.send:
                 self.send(self.draw(frame.copy()))
 
     def draw(self, frame):
-        """判定线 + 最近的框画到帧上（显示 / 图传共用）"""
+        """判定线 + 框画到帧上（显示 / 图传共用）。
+
+        刚观测到的画实绿框；跟丢的轨迹还在按速度外推，画淡绿细框 + 一条从最后观测点到
+        预测点的引导线 —— 一眼能看出「这是预测，不是真的看见人」。
+        """
         for counter in self.counters:
             counter.draw(frame)
         for t in self.tracks:
-            x1, y1, x2, y2 = (int(v) for v in t.box)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            if t.misses:
+                x1, y1, x2, y2 = (int(v) for v in t.box)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (140, 255, 140), 1)
+                cv2.arrowedLine(frame, (int((t.obs[0] + t.obs[2]) / 2), int(t.obs[3])),
+                                (int((t.box[0] + t.box[2]) / 2), int(t.box[3])),
+                                (140, 255, 140), 1, tipLength=0.3)
+            else:
+                x1, y1, x2, y2 = (int(v) for v in t.obs)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         return frame
 
     def bind(self, window, push_rows) -> None:

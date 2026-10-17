@@ -55,7 +55,8 @@ class PeoplePage:
                                        Detector(stored_settings.get("model", "models/yolo11n.onnx")),
                                        ByteTracker(),
                                        self.calibration.counters,
-                                       send=self.sender if self.streaming else None)
+                                       send=self.sender if self.streaming else None,
+                                       counted=self.reporter.notify)
         self.rows = []
 
     def start(self):
@@ -135,6 +136,7 @@ class PeoplePage:
             return
         self.device = devices[(devices.index(self.device) + 1) % len(devices)]
         self.calibration = Calibration(self.device)
+        self.reporter.calibration = self.calibration
         self.viewport.read_frame = lambda idx=devices.index(self.device): camera_service.get_frame(idx)
         self.viewport.counters = self.calibration.counters
         self.viewport.tracker = ByteTracker()  # 换了画面，旧轨迹全作废

@@ -21,7 +21,16 @@ export const onUpdate: (() => void)[] = [];
 
 /** 给某台设备发一条报文。它不在线就丢掉，连上时会把当前的数补给它 */
 export function sendTo(device_id: string, m: WSMessage) {
-  devices.get(device_id)?.ws?.send(JSON.stringify(m));
+  const ws = devices.get(device_id)?.ws;
+  if (!ws) {
+    console.warn(`[hub] 设备 ${device_id} 不在线，${m.type} 没发出去`);
+    return;
+  }
+  try {
+    ws.send(JSON.stringify(m));
+  } catch (err) {
+    console.error(`[hub] 给设备 ${device_id} 发 ${m.type} 失败:`, err);
+  }
 }
 
 // 服务器启动：库里的设备与实体全读进来，之后只有连接和读数在变
@@ -132,10 +141,21 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
   // 先登记连接再写库：板子的第一条消息可能比这次写库更早到
   let device = devices.get(device_id);
   if (device) {
+    // 先来的那条连接还在，踢掉它，省得两条连接轮流写同一台设备
+    const old = device.ws;
+    if (old && old !== ws) {
+      console.warn(`[hub] 设备 ${device_id} 重复接入，关掉旧连接`);
+      try {
+        old.close(4001, "replaced by new connection");
+      } catch {
+        // 关不掉就算了，下面照样换成新连接
+      }
+    }
     device.ip = ip;
     device.online = true;
     device.ws = ws;
     device.lastSeen = now();
+    console.log(`[hub] 设备 ${device_id} (${ip}) 重连`);
   } else {
     // 设备名由服务端分配，新设备先拿 id 顶
     device = {
@@ -148,6 +168,7 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
       entities: new Map(),
     };
     devices.set(device_id, device);
+    console.log(`[hub] 新设备 ${device_id} (${ip}) 接入，实体 ${device.entities.size} 个`);
   }
   await db.device.upsert({
     where: { id: device_id },
@@ -169,12 +190,16 @@ export function disconnect(device_id: string) {
   if (!device) return;
   device.online = false;
   device.ws = undefined;
+  console.log(`[hub] 设备 ${device_id} 断开`);
   for (const notify of onUpdate) notify();
 }
 
 export async function handleMessage(device_id: string, raw: string) {
   const device = devices.get(device_id);
-  if (!device) return; // 连接已经不在了，这条丢掉
+  if (!device) {
+    console.warn(`[hub] 设备 ${device_id} 已不在，丢掉一条报文`);
+    return;
+  }
   device.lastSeen = now();
   const m = JSON.parse(raw) as WSMessage;
   for (const handle of handlers)
@@ -188,7 +213,9 @@ const HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
 export function checkOffline() {
   for (const [id, d] of devices) {
     if (!d.ws || now() - d.lastSeen <= HEARTBEAT_TIMEOUT) continue;
-    console.log(`设备 ${id} 失联 ${now() - d.lastSeen}s，断开`);
+    console.log(
+      `[hub] 设备 ${id} 失联 ${now() - d.lastSeen}s（心跳超时 ${HEARTBEAT_TIMEOUT}s），断开`,
+    );
     try {
       d.ws.close(4000, "heartbeat timeout");
     } catch {

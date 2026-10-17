@@ -20,16 +20,21 @@ app.get(
         void connect(device_id, ws, raw?.remoteAddress ?? "");
       },
       onMessage(e) {
-        handleMessage(device_id, String(e.data)).catch(console.error);
+        handleMessage(device_id, String(e.data)).catch((err) =>
+          console.error(`[ws] 处理设备 ${device_id} 的报文，发现:`, err),
+        );
       },
       onClose() {
         disconnect(device_id);
+      },
+      onError(e) {
+        console.error(`[ws] 设备 ${device_id} 连接，发现:`, e);
       },
     };
   }),
 );
 
 app.onError((err, c) => {
-  console.error(err);
+  console.error(`[api] ${c.req.method} ${c.req.path} :`, err);
   return c.json({ error: String(err) }, 500);
 });

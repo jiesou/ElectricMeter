@@ -13,6 +13,7 @@ startUdpCamera(udpPort);
 startHeartbeat();
 setInterval(save, 1000);
 
-console.log(`server   http://localhost:${port}`);
+console.log(`http     http://localhost:${port}`);
 console.log(`device   ws://localhost:${port}/ws?device_id=esp-301`);
+console.log(`udp      udp://localhost:${udpPort}`);
 console.log(`ts       ${now()}`);
