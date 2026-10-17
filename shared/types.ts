@@ -12,7 +12,7 @@ export interface Entity {
   inCount?: number; // people-counter：进
   outCount?: number; // people-counter：出
   netCount?: number; // people-counter：净，大屏说多少就是多少，服务器不拿 in-out 去算
-  ts?: number; // 实例存在的时间点，可以用来提供最后一次上报的时间（秒级时间戳）
+  ts?: number; // 实例存在的时间点，可以用来提供最后一次上报的时间（毫秒级时间戳）
 }
 
 export interface Switch extends Entity {
@@ -38,13 +38,13 @@ export interface Device {
   name: string;
   ip: string;
   online: boolean;
-  lastSeen: number; // 秒级时间戳
+  lastSeen: number; // 毫秒级时间戳
 }
 
 /* === WebSocket 通信协议 === */
 export interface WSMessage {
   type: string;
-  ts?: number; // 全局统一 UTC 秒级时间戳
+  ts?: number; // 全局统一 UTC 毫秒级时间戳
   [key: string]: unknown;
 }
 export type WSMessageHandler = (

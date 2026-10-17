@@ -16,7 +16,7 @@
   - 不要堆砌文档和注释！让代码自己说话
   - 不要造名词——Entities 和 Devices 就够了，observers、conns、live 这种稀奇古怪的名词只会让人读不懂
 - **已规划** 的东西是长期目标，“已规划”不是 TODO list。用户没有敲定就不要主动去实现规划中的东西
-- 涉及到的全部时间，都直接使用 number 秒级时间戳，不使用任何特定时间格式，便于客户机单片机处理
+- 涉及到的全部时间，都直接使用 number 毫秒级时间戳（`Date.now()` 的口径），不使用任何特定时间格式
 - 保护性代码几乎不需要，message.error 都可以少一点，“it just work”即可，确保代码实现极度可读、代码量少、简单高效。代码的“简单，不overengineered”非常非常重要
 - 不要 Overengineering！不要 Overengineering！不要 Overengineering！保持代码实现简短简单。如果可能，减少代码的更改
 - 这是个 Bun 项目，不要换成 Node

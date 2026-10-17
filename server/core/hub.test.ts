@@ -69,7 +69,7 @@ test("失联判定：10s 没消息就当它掉线，连接也关掉", async () =
   const d = await fakeDevice("esp-112");
   await d.setup();
 
-  table("esp-111").lastSeen = now() - 11; // 断电断网，TCP 还挂着
+  table("esp-111").lastSeen = now() - 11_000; // 断电断网，TCP 还挂着
   hub.checkOffline();
 
   expect(closed).toEqual([4000]);

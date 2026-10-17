@@ -43,7 +43,7 @@ export function createApi(host: string): Api {
       return (await res.json()) as T;
     },
 
-    /** SSE 快照流：连上立即收到一次全量，之后每秒一次完整快照 */
+    /** SSE 快照流：连上立即收到一次全量，之后每来一帧读数推一次完整快照 */
     async sse<T>(path: string, on: (snapshot: T) => void): Promise<void> {
       const res = await open(path);
       const dec = new TextDecoder();
@@ -53,6 +53,7 @@ export function createApi(host: string): Api {
         const parts = buf.split("\n\n");
         buf = parts.pop() ?? "";
         for (const part of parts) {
+          if (part.startsWith("event: ")) continue; // 具名事件（points 之类）不是快照
           const data = part
             .split("\n")
             .find((l) => l.startsWith("data: "))

@@ -67,10 +67,15 @@ test("客房 SSE 立即发送与 REST 相同的快照", async () => {
 
   const reader = response.body!.getReader();
   try {
-    const { value } = await reader.read();
-    const streamed = JSON.parse(
-      new TextDecoder().decode(value).slice(6).trim(),
-    );
+    // 第一帧是 points 事件（空），快照是那个不带 event 名的帧
+    let text = "";
+    let streamed: unknown;
+    while (streamed === undefined) {
+      const { value } = await reader.read();
+      text += new TextDecoder().decode(value);
+      for (const part of text.split("\n\n").slice(0, -1))
+        if (!part.startsWith("event: ")) streamed = JSON.parse(part.slice(6));
+    }
     expect(streamed).toEqual(rest);
   } finally {
     await reader.cancel();
@@ -85,13 +90,13 @@ test("客房历史只给窗口内的读数", async () => {
   await db.entityHistory.deleteMany({ where: { device_id: "esp-303" } });
   await db.entityHistory.createMany({
     data: [
-      { device_id: "esp-303", id: "light-meter", ts: ts - 5, powerW: 55 },
-      { device_id: "esp-303", id: "light-meter", ts: ts - 601, powerW: 10 },
+      { device_id: "esp-303", id: "light-meter", ts: ts - 5_000, powerW: 55 },
+      { device_id: "esp-303", id: "light-meter", ts: ts - 601_000, powerW: 10 },
     ],
   });
 
   expect(await json(await app.request("/api/rooms/esp-303/history"))).toEqual([
-    { device_id: "esp-303", id: "light-meter", ts: ts - 5, powerW: 55 },
+    { device_id: "esp-303", id: "light-meter", ts: ts - 5_000, powerW: 55 },
   ]);
 });
 

@@ -54,6 +54,8 @@ const chartData = computed<ChartData<"line">>(() => {
         backgroundColor: color,
         borderWidth: 1.5,
         pointRadius: 0,
+        // 三只表各采各的时刻，并集里别人的时刻是 null，得跨过去连
+        spanGaps: true,
       };
     }),
   };
@@ -90,6 +92,8 @@ const options = computed<ChartOptions<"line">>(() => ({
       bodyColor: TEXT,
       footerColor: TEXT,
       padding: 10,
+      // 三只表各采各的时刻，别人那一格是 null，别拿它当 0 报出来
+      filter: (item) => item.parsed.y !== null,
       callbacks: {
         title: (items) => clock(Number(items[0]?.label)),
         label: (item) =>
@@ -122,9 +126,9 @@ const options = computed<ChartOptions<"line">>(() => ({
   },
 }));
 
-/** 时间只在这里出现：数据层一律秒级时间戳 */
+/** 时间只在这里出现：数据层一律毫秒级时间戳 */
 function clock(ts: number) {
-  const d = new Date(ts * 1000);
+  const d = new Date(ts);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }

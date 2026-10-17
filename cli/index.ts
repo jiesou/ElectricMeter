@@ -93,9 +93,14 @@ prog
         ? `/entities/stream?device=${encodeURIComponent(opts.device)}`
         : "/rooms/stream";
       console.error(pc.dim("实时快照流，每秒刷新，Ctrl-C 退出"));
+      // 快照来得比这密（一轮 RS485 一次），整屏重绘跟不上，按秒挑一帧画
+      let lastPaint = 0;
       await api.sse<Room[] | Entity[]>(path, (snap) => {
         if (json()) console.log(JSON.stringify(snap));
         else {
+          const now = Date.now();
+          if (now - lastPaint < 1000) return;
+          lastPaint = now;
           process.stdout.write("\x1b[H\x1b[2J");
           console.log(
             opts.device

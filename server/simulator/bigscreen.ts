@@ -23,7 +23,7 @@ let reportTimer: ReturnType<typeof setInterval> | null = null;
 let aliveTimer: ReturnType<typeof setInterval> | null = null;
 let backoff = 1000;
 
-const now = () => Math.floor(Date.now() / 1000);
+const now = () => Date.now();
 
 const send = (m: WSMessage) =>
   ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));

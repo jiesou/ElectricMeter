@@ -46,7 +46,7 @@ function sample() {
 
 const send = (m: WSMessage) =>
   ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
-const now = () => Math.floor(Date.now() / 1000);
+const now = () => Date.now();
 
 function entities(): Entity[] {
   return CIRCUITS.flatMap((c) => [
@@ -66,7 +66,7 @@ function tick() {
   sample();
   const dt = lastTick ? ts - lastTick : 0;
   lastTick = ts;
-  for (const c of CIRCUITS) energy[c.id] += (power[c.id] * dt) / 3.6e6;
+  for (const c of CIRCUITS) energy[c.id] += (power[c.id] * dt) / 3.6e9;
 
   const fresh = entities();
   const changed: Entity[] = [];

@@ -20,6 +20,7 @@ app.get(
         void connect(device_id, ws, raw?.remoteAddress ?? "");
       },
       onMessage(e) {
+        console.log(`[ws] 设备 ${device_id} 发来报文:`, JSON.parse(e.data));
         handleMessage(device_id, String(e.data)).catch((err) =>
           console.error(`[ws] 处理设备 ${device_id} 的报文，发现:`, err),
         );

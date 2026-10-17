@@ -13,9 +13,9 @@ describe("格式化", () => {
     expect(kwh(0)).toBe("0.00 kWh");
   });
 
-  test("秒级时间戳转本地时间", () => {
+  test("毫秒级时间戳转本地时间", () => {
     // 2025-10-01 12:00:00 UTC+8
-    const ts = 1759291200;
+    const ts = 1759291200000;
     expect(clock(ts)).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(stamp(ts)).toMatch(/^\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });

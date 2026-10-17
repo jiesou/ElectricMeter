@@ -8,6 +8,7 @@ import type {
   WSMessageHandler,
 } from "@em/shared";
 import { db } from "./db.ts";
+import { save, type Point } from "./history.ts";
 import { now } from "./util.ts";
 
 /** 所有设备：库是底账，这里是运行期那份（连接 + 读数 + 最后说话时间） */
@@ -17,7 +18,10 @@ export const devices = new Map<
 >();
 
 /** 有读数进来就喊一声：SSE 这类只读的推流端各自挂上来 */
-export const onUpdate: (() => void)[] = [];
+export const onUpdate: ((points: Point[]) => void)[] = [];
+
+/** 最近一条报文里落盘的那批读数：快照只有最终值，曲线要的是这一串 */
+export let recent: Point[] = [];
 
 /** 给某台设备发一条报文。它不在线就丢掉，连上时会把当前的数补给它 */
 export function sendTo(device_id: string, m: WSMessage) {
@@ -78,6 +82,7 @@ handlers.push((_device, reply, m) => {
  */
 handlers.push(async (device, _reply, m) => {
   if (m.type !== "pub_entities") return;
+  const points: Point[] = [];
   for (const e of (m as EntitiesMessage).entities) {
     // 实体自己指了设备就听它的，没指就报在这条连接的设备名下
     const device_id = e.device_id ?? device.id;
@@ -100,6 +105,14 @@ handlers.push(async (device, _reply, m) => {
       ts: e.ts ?? old?.ts,
     };
     target.entities.set(e.id, row);
+    // 历史按读数自己的时刻落：申报那条没带 ts，不落
+    if (row.type === "meter" && e.ts)
+      points.push({
+        device_id,
+        id: row.id,
+        ts: e.ts,
+        powerW: row.powerW ?? 0,
+      });
     // 人数是替房间报的：那间房自己的设备要能看到自己的数
     if (row.type === "people-counter" && device_id !== device.id)
       sendTo(device_id, { type: "pub_entities", ts: now(), entities: [row] });
@@ -119,7 +132,9 @@ handlers.push(async (device, _reply, m) => {
       },
     });
   }
-  for (const notify of onUpdate) notify();
+  await save(points);
+  recent = points;
+  for (const notify of onUpdate) notify(points);
 });
 
 /** 设备干完活回执：回执里的 state 就是实体现在的状态，写回内存与库，顺手推给网页 */
@@ -134,7 +149,7 @@ handlers.push(async (device, _reply, m) => {
     where: { device_id_id: { device_id: device.id, id } },
     data: { state, ts: row.ts },
   });
-  for (const notify of onUpdate) notify();
+  for (const notify of onUpdate) notify([]);
 });
 
 export async function connect(device_id: string, ws: WSContext, ip = "") {
@@ -155,7 +170,7 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
     device.online = true;
     device.ws = ws;
     device.lastSeen = now();
-    console.log(`[hub] 设备 ${device_id} (${ip}) 重连`);
+    console.log(`[hub] 设备 ${device_id} (${ip}) 已连接`);
   } else {
     // 设备名由服务端分配，新设备先拿 id 顶
     device = {
@@ -182,7 +197,7 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
   );
   if (people.length)
     sendTo(device_id, { type: "pub_entities", ts: now(), entities: people });
-  for (const notify of onUpdate) notify();
+  for (const notify of onUpdate) notify([]);
 }
 
 export function disconnect(device_id: string) {
@@ -191,7 +206,7 @@ export function disconnect(device_id: string) {
   device.online = false;
   device.ws = undefined;
   console.log(`[hub] 设备 ${device_id} 断开`);
-  for (const notify of onUpdate) notify();
+  for (const notify of onUpdate) notify([]);
 }
 
 export async function handleMessage(device_id: string, raw: string) {
@@ -206,7 +221,7 @@ export async function handleMessage(device_id: string, raw: string) {
     await handle(device, (r) => device.ws?.send(JSON.stringify(r)), m);
 }
 
-const HEARTBEAT_TIMEOUT = 10; // 心跳超时（秒）：板子 3s 一拍，10s 没动静就当它失联
+const HEARTBEAT_TIMEOUT = 10_000; // 心跳超时（毫秒）：板子 3s 一拍，10s 没动静就当它失联
 const HEARTBEAT_CHECK_INTERVAL = 2000; // 心跳检查间隔（毫秒）
 
 /** 断电断网时 TCP 不会断，光等 onClose 是等不到的，得自己看表 */
@@ -214,7 +229,7 @@ export function checkOffline() {
   for (const [id, d] of devices) {
     if (!d.ws || now() - d.lastSeen <= HEARTBEAT_TIMEOUT) continue;
     console.log(
-      `[hub] 设备 ${id} 失联 ${now() - d.lastSeen}s（心跳超时 ${HEARTBEAT_TIMEOUT}s），断开`,
+      `[hub] 设备 ${id} 失联 ${now() - d.lastSeen}ms（心跳超时 ${HEARTBEAT_TIMEOUT}ms），断开`,
     );
     try {
       d.ws.close(4000, "heartbeat timeout");

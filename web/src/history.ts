@@ -1,9 +1,9 @@
 import { reactive } from "vue";
-import type { HistoryPoint, Room } from "./api.ts";
+import type { HistoryPoint, Point, Room } from "./api.ts";
 import { fetchHistory } from "./api.ts";
 
 /** 只留最近 10 分钟，跟服务端 history.ts 一致 */
-const KEEP = 600;
+const KEEP = 600_000;
 
 export interface Series {
   id: string;
@@ -37,30 +37,35 @@ export async function loadHistory(room: Room) {
   store.set(room.id, list);
 }
 
-/** 每来一帧快照，给每个电表往右补一个点 */
-export function record(rooms: Room[]) {
-  const ts = Math.floor(Date.now() / 1000);
-  const cutoff = ts - KEEP;
+/** 攒进曲线：给一批读数就照它们的时刻插，没给就按这一帧的房间快照自己打点 */
+export function record(rooms: Room[], points?: Point[]) {
+  const now = Date.now();
+  const rows =
+    points ??
+    rooms.flatMap((room) =>
+      room.entities
+        .filter((entity) => entity.type === "meter")
+        .map((entity) => ({
+          device_id: room.id,
+          id: entity.id,
+          ts: entity.ts ?? now,
+          powerW: entity.powerW ?? 0,
+        })),
+    );
+  const cutoff = now - KEEP;
 
-  for (const room of rooms) {
-    const list = store.get(room.id) ?? [];
-    for (const entity of room.entities) {
-      if (entity.type === "meter")
-        upsert(
-          list,
-          entity.id,
-          entity.name ?? entity.id,
-          ts,
-          entity.powerW ?? 0,
-        );
-    }
+  for (const row of rows) {
+    const room = rooms.find((r) => r.id === row.device_id);
+    const name = room?.entities.find((e) => e.id === row.id)?.name ?? row.id;
+    const list = store.get(row.device_id) ?? [];
+    upsert(list, row.id, name, row.ts, row.powerW);
     for (const s of list)
       while (s.points[0] && s.points[0].ts < cutoff) s.points.shift();
-    if (list.length) store.set(room.id, list);
+    store.set(row.device_id, list);
   }
 }
 
-/** 按 ts 升序插入，同一秒只留一个点 */
+/** 按 ts 升序插进去，同一毫秒只留一个点：回填的老点要插到前面，不能只往尾巴上追加 */
 function upsert(
   list: Series[],
   id: string,
@@ -73,7 +78,8 @@ function upsert(
     s = { id, name, points: [] };
     list.push(s);
   }
-  const last = s.points[s.points.length - 1];
-  if (!last || last.ts < ts) s.points.push({ ts, powerW });
-  else if (last.ts === ts) last.powerW = powerW;
+  const i = s.points.findIndex((p) => p.ts >= ts);
+  if (i === -1) s.points.push({ ts, powerW });
+  else if (s.points[i].ts === ts) s.points[i].powerW = powerW;
+  else s.points.splice(i, 0, { ts, powerW });
 }

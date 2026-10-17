@@ -21,7 +21,7 @@ const snapshot = () =>
   });
 
 rooms.get("/", (c) => c.json(snapshot()));
-rooms.get("/stream", (c) => streamSnapshot(c, snapshot));
+rooms.get("/stream", (c) => streamSnapshot(c, snapshot, () => hub.recent));
 
 /** 该房所有实体窗口内的历史读数，默认最近 10 分钟 */
 rooms.get("/:device_id/history", async (c) =>
@@ -29,7 +29,7 @@ rooms.get("/:device_id/history", async (c) =>
     await db.entityHistory.findMany({
       where: {
         device_id: c.req.param("device_id"),
-        ts: { gte: Number(c.req.query("since") ?? now() - 600) },
+        ts: { gte: Number(c.req.query("since") ?? now() - 600_000) },
       },
       orderBy: { ts: "asc" },
     }),

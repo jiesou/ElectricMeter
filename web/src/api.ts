@@ -34,9 +34,24 @@ export async function fetchRooms(): Promise<Room[]> {
   return (await send("/rooms")).json();
 }
 
-export function streamRooms(on: (rooms: Room[]) => void, onError: () => void) {
+/** /api/rooms/stream 上 `event: points` 推的那批读数 */
+export interface Point {
+  device_id: string;
+  id: string;
+  ts: number;
+  powerW: number;
+}
+
+export function streamRooms(
+  on: (rooms: Room[]) => void,
+  onPoints: (points: Point[]) => void,
+  onError: () => void,
+) {
   const source = new EventSource(`${base}/rooms/stream`);
   source.onmessage = (e) => on(JSON.parse(e.data) as Room[]);
+  source.addEventListener("points", (e) =>
+    onPoints(JSON.parse((e as MessageEvent).data) as Point[]),
+  );
   source.onerror = onError;
   return () => source.close();
 }

@@ -18,6 +18,6 @@ export const db = new PrismaClient({
   }),
 });
 
-// 读数每秒落一次盘，走 WAL 且不 fsync：进程崩溃不丢，断电最多回滚最后一笔
+// 读数来一条落一条，走 WAL 且不 fsync：进程崩溃不丢，断电最多回滚最后一笔
 await db.$executeRawUnsafe("PRAGMA journal_mode = WAL");
 await db.$executeRawUnsafe("PRAGMA synchronous = NORMAL");

@@ -28,7 +28,7 @@ model Entity {
   inCount    Int?
   outCount   Int?
   netCount   Int?
-  ts         Int?
+  ts         Float?
   device     Device          @relation(fields: [device_id], references: [id], onDelete: Cascade)
   history    EntityHistory[]
 
@@ -39,7 +39,7 @@ model Entity {
 model EntityHistory {
   device_id String
   id        String
-  ts        Int
+  ts        Float
   powerW    Float
   entity    Entity @relation(fields: [device_id, id], references: [device_id, id], onDelete: Cascade)
 

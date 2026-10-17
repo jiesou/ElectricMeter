@@ -83,5 +83,5 @@ export function show(e: Entity): string {
 
 /** watch 的每秒一帧：本机时钟 + 房间表 */
 export function watchTick(list: Room[]): string {
-  return `${pc.dim(clock(Date.now() / 1000))}\n${rooms(list)}`;
+  return `${pc.dim(clock(Date.now()))}\n${rooms(list)}`;
 }

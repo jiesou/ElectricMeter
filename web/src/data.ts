@@ -24,7 +24,6 @@ function apply(next: Room[]) {
   rooms.value = next;
   record(next);
 }
-
 /** 按 mock 选来源，两者写的是同一份 rooms */
 export function connect() {
   stop?.();
@@ -55,6 +54,7 @@ export function connect() {
       status.value = "已连接";
       apply(snapshot);
     },
+    (points) => record(rooms.value, points),
     () => {
       status.value = "已断开";
     },

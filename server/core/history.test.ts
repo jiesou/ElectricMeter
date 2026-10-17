@@ -1,16 +1,19 @@
 import { beforeEach, expect, test } from "bun:test";
 import type { Entity } from "@em/shared";
 import { db } from "./db.ts";
-import { save } from "./history.ts";
 import * as hub from "./hub.ts";
 import { now } from "./util.ts";
 
-async function device(id: string, entities: Entity[]) {
+async function device(id: string, entities: Entity[], ts = now()) {
   const ws = { send: () => {}, close: () => {} } as never;
   await hub.connect(id, ws, "10.0.0.9");
   await hub.handleMessage(
     id,
-    JSON.stringify({ type: "pub_entities", ts: now(), entities }),
+    JSON.stringify({
+      type: "pub_entities",
+      ts,
+      entities: entities.map((e) => ({ ...e, ts })),
+    }),
   );
 }
 
@@ -19,7 +22,7 @@ beforeEach(async () => {
   await db.entityHistory.deleteMany();
 });
 
-test("给每个电表拍一行，开关不落盘", async () => {
+test("每报一次读数就落一行，开关不落盘", async () => {
   await device("esp-301", [
     { id: "light", name: "灯", type: "switch", state: true },
     {
@@ -37,7 +40,6 @@ test("给每个电表拍一行，开关不落盘", async () => {
       energyKwh: 3,
     },
   ]);
-  await save();
 
   const rows = await db.entityHistory.findMany({ orderBy: { id: "asc" } });
   expect(rows.map((row) => [row.device_id, row.id, row.powerW])).toEqual([
@@ -46,15 +48,30 @@ test("给每个电表拍一行，开关不落盘", async () => {
   ]);
 });
 
-test("窗口外的读数被删掉", async () => {
-  await device("esp-301", [
-    { id: "light-meter", name: "灯功率", type: "meter", powerW: 55 },
+test("同一个电表报两次留两个点，时间用设备报的", async () => {
+  const t = now();
+  await device(
+    "esp-302",
+    [{ id: "light-meter", name: "灯功率", type: "meter", powerW: 10 }],
+    t,
+  );
+  await device("esp-302", [{ id: "light-meter", powerW: 20 }], t + 290);
+
+  const rows = await db.entityHistory.findMany({ orderBy: { ts: "asc" } });
+  expect(rows.map((row) => [row.ts, row.powerW])).toEqual([
+    [t, 10],
+    [t + 290, 20],
   ]);
-  const old = now() - 601;
-  await db.entityHistory.create({
-    data: { device_id: "esp-301", id: "light-meter", ts: old, powerW: 1 },
-  });
-  await save();
+});
+
+test("窗口外的读数被删掉", async () => {
+  const old = now() - 601_000;
+  await device(
+    "esp-303",
+    [{ id: "light-meter", name: "灯功率", type: "meter", powerW: 1 }],
+    old,
+  );
+  await device("esp-303", [{ id: "light-meter", powerW: 55 }]);
 
   const rows = await db.entityHistory.findMany();
   expect(rows.map((row) => row.ts)).not.toContain(old);
