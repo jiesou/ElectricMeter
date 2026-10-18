@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import AgentView from "./views/AgentView.vue";
 import CameraView from "./views/CameraView.vue";
 import RoomsView from "./views/RoomsView.vue";
 import StatsView from "./views/StatsView.vue";
@@ -10,5 +11,6 @@ export const router = createRouter({
     { path: "/rooms", component: RoomsView },
     { path: "/stats", component: StatsView },
     { path: "/camera", component: CameraView },
+    { path: "/agent", component: AgentView },
   ],
 });

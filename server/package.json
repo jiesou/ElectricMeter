@@ -13,11 +13,15 @@
     "test:db": "rm -f data/electric.test.db* && bunx prisma generate && DATABASE_URL=file:./data/electric.test.db bunx prisma db push"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^3.0.67",
+    "@ai-sdk/openai-compatible": "^3.0.71",
     "@em/shared": "workspace:*",
     "@hono/bun": "^1.0.0",
     "@prisma/adapter-libsql": "7.10.0",
     "@prisma/client": "7.10.0",
-    "hono": "^4.13.0"
+    "ai": "^7.0.143",
+    "hono": "^4.13.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "prisma": "^7.0.0",

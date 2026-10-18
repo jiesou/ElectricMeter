@@ -17,3 +17,6 @@ target/
 
 .tmp
 .datasets
+
+# 智能体：密钥只在本机
+.env

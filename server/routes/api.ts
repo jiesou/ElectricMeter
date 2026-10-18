@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { now } from "../core/util.ts";
+import { chat } from "./chat.ts";
 import { clock } from "./clock.ts";
 import { cv } from "./cv.ts";
 import { devices } from "./devices.ts";
@@ -11,6 +12,7 @@ export const api = new Hono();
 
 api.get("/health", (c) => c.json({ status: "ok", ts: now() }));
 
+api.route("/chat", chat);
 api.route("/clock", clock);
 api.route("/cv", cv);
 api.route("/devices", devices);

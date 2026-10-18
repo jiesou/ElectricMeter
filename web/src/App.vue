@@ -76,6 +76,22 @@ onUnmounted(() => {
         </svg>
         <span>视频监控</span>
       </RouterLink>
+      <RouterLink to="/agent" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3.4 13.9 9l5.6 1.9-5.6 1.9L12 18.4 10.1 12.8 4.5 10.9 10.1 9z" />
+          <path d="M18.6 16.4l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
+        </svg>
+        <span>智能分析</span>
+      </RouterLink>
     </nav>
 
     <main class="main">
