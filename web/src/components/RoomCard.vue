@@ -2,7 +2,7 @@
 import type { Entity } from "@em/shared";
 import { computed, nextTick, ref } from "vue";
 import type { Room } from "../api.ts";
-import { rename, remove, setSwitch } from "../data.ts";
+import { rename, remove, setSwitch, canSwitch } from "../data.ts";
 import { circuitVar } from "../color.ts";
 import { energy } from "../format.ts";
 import MeterCard from "./MeterCard.vue";
@@ -27,9 +27,12 @@ const counter = computed(() =>
 
 const isOn = (e: Entity) => e.state ?? false;
 const reported = (e: Entity) => e.state !== undefined;
+// 角色说了算：访客一律不能动闸，保洁只动空房，管理都能动
+const allowed = computed(() => canSwitch(props.room));
 
 function toggle(e: Entity) {
-  if (props.room.online) void setSwitch(props.room.id, e, !isOn(e)).catch(() => {});
+  if (props.room.online && allowed.value)
+    void setSwitch(props.room.id, e, !isOn(e)).catch(() => {});
 }
 
 // 总闸：全房开关全为 on 才是 on，点一下全部切到相反值
@@ -38,7 +41,7 @@ const masterOn = computed(
 );
 
 function toggleMaster() {
-  if (!props.room.online || !switches.value.length) return;
+  if (!props.room.online || !allowed.value || !switches.value.length) return;
   const next = !masterOn.value;
   for (const e of switches.value)
     void setSwitch(props.room.id, e, next).catch(() => {});
@@ -110,7 +113,7 @@ async function del() {
       <button
         class="track"
         :class="{ on: masterOn }"
-        :disabled="!room.online || !switches.length"
+        :disabled="!room.online || !allowed || !switches.length"
         aria-label="整房总闸"
         @click="toggleMaster"
       >
@@ -133,6 +136,7 @@ async function del() {
         :key="e.id"
         :entity="e"
         :online="room.online"
+        :allowed="allowed"
         :on="isOn(e)"
         :reported="reported(e)"
         :style="{ '--circuit': circuitVar(e.id, room.entities) }"

@@ -41,6 +41,25 @@ onUnmounted(() => {
         </svg>
         <span>客房管理</span>
       </RouterLink>
+      <RouterLink to="/stats" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 20h18" />
+          <path d="M6 20v-7" />
+          <path d="M11 20V6" />
+          <path d="M16 20v-4" />
+          <path d="M21 20V9" />
+        </svg>
+        <span>统计数据</span>
+      </RouterLink>
       <RouterLink to="/camera" class="item" active-class="on">
         <svg
           class="icon"

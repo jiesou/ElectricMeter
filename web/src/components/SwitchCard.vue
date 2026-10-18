@@ -4,6 +4,8 @@ import type { Entity } from "@em/shared";
 defineProps<{
   entity: Entity;
   online: boolean;
+  /** 这个角色能不能动这台闸：访客不行，保洁只动空房，管理都能动 */
+  allowed: boolean;
   on: boolean;
   reported: boolean;
 }>();
@@ -15,7 +17,7 @@ defineEmits<{ toggle: [] }>();
   <button
     class="switch"
     :class="{ dim: !reported }"
-    :disabled="!online"
+    :disabled="!online || !allowed"
     @click="$emit('toggle')"
   >
     <span class="name">{{ entity.name ?? entity.id }}</span>

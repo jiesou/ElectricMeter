@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import PageHeader from "../components/PageHeader.vue";
 import RoomCard from "../components/RoomCard.vue";
-import StatusTag from "../components/StatusTag.vue";
 import { rooms, search } from "../data.ts";
 
 // 一个实体都没报过的设备不是客房（大屏就是这种：它只替别的房报人数），别画成卡片
@@ -20,9 +19,7 @@ const shown = computed(() => {
 </script>
 
 <template>
-  <PageHeader>
-    <StatusTag />
-  </PageHeader>
+  <PageHeader />
 
   <input
     v-model="search"

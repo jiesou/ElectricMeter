@@ -8,3 +8,10 @@ export function power(w?: number): string {
 export function energy(kwh?: number): string {
   return kwh === undefined ? "—" : `${kwh.toFixed(2)} kWh`;
 }
+
+/** 日期：MM-DD（只在界面上出现，数据层一律毫秒时间戳） */
+export function date(ts?: number): string {
+  if (ts === undefined) return "—";
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, "0")}`;
+}

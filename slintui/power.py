@@ -55,6 +55,17 @@ class PowerStream:
     def _update(self, data):
         if self.mock:  # 切到 mock 后，旧连接尾巴上的数据不再写进来
             return
+
+        def people(room):
+            """人数不是用电器，不进卡片，画在房间标题行"""
+            counter = next((e for e in room["entities"] if e["type"] == "people-counter"), None)
+            return {
+                "in": counter.get("inCount") or 0,
+                "out": counter.get("outCount") or 0,
+                "net": counter.get("netCount") or 0,
+                "counted": bool(counter),
+            } if counter else {"in": 0, "out": 0, "net": 0, "counted": False}
+
         with self.lock:
             self.rows = [{
                 "id": room["id"],  # 判定线绑客房用的就是这个 device_id
@@ -68,5 +79,6 @@ class PowerStream:
                     "state": bool(entity.get("state")),
                     "power": entity.get("powerW") or 0,
                     "energy": f"{entity.get('energyKwh') or 0:.2f}",
-                } for entity in room["entities"]],
+                } for entity in room["entities"] if entity["type"] in ("meter", "switch")],
+                "people": people(room),
             } for room in data]

@@ -40,14 +40,18 @@
 - **server/**
   - `app.ts` —— `/ws` 接下位机（只出站）、`/api/*` 挂 REST 与 SSE
   - `core/hub.ts`
+  - `core/util.ts` —— 全服务器唯一的时间源，`nextDay()` 把表往前拨一天
+  - `core/energy.ts` —— 把下位机报的累计电量接成一条只增不减的线
+  - `core/history.ts` —— 账本，不删行
+  - `core/stays.ts` / `core/stats.ts` —— 入住区间与统计（做差，见 decisions）
   - `routes/api.ts`
-  - `routes/devices.ts` / `routes/entities.ts` / `routes/rooms.ts`
+  - `routes/devices.ts` / `routes/entities.ts` / `routes/rooms.ts` / `routes/stats.ts` / `routes/clock.ts`
   - `core/sse.ts`
-  - `core/history.ts`
   - `core/db.ts`
   - `*.test.ts`
   - `simulator/esp32.ts`
   - `simulator/bigscreen.ts`
+  - `simulator/stays.ts` —— 给接入的房铺演示历史（样本）
   - `core/udp_camera.ts`
   - `routes/cv.ts`
   - action 下通断令：`routes/entities.ts` 下发 `pub_action_switch`，`core/hub.ts` 收 `ack_action_switch` 落 state
@@ -64,14 +68,13 @@
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**
   - `src/data.ts`
-  - `src/views/*`
+  - `src/views/*` —— 客房管理 / 统计数据 / 视频监控
   - 设计意图见 `.agents/notes/decisions/网页前端设计.md`
 
 ## 已规划
 
 > 实现后挪到上方，然后从这里删除，不留
 
-- **统计分析** —— 实时功率曲线、退房页（24小时用电分布与百分位）；怎么做见 `.agents/notes/decisions/历史记录与统计.md`
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）

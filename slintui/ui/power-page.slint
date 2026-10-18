@@ -115,6 +115,24 @@ component RoomCard inherits Rectangle {
                 horizontal-stretch: 1;
             }
 
+            // 人数不是用电器，跟网页一样画在房间标题行
+            if root.room.people.counted : HorizontalLayout {
+                spacing: Sizing.small * 35%;
+
+                Text {
+                    text: "净 " + root.room.people.net;
+                    color: Palette.accent-background;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: " 进 " + root.room.people.in + " · 出 " + root.room.people.out;
+                    color: Palette.foreground.with-alpha(55%);
+                    vertical-alignment: center;
+                }
+            }
+
             Text {
                 text: root.room.power + " W";
                 color: Palette.foreground;

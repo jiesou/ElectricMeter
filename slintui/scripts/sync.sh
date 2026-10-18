@@ -7,7 +7,7 @@ BOARD="${BOARD:-orangepi5plus}"
 DEST="${DEST:-services/ElectricMeter/slintui/}"
 
 rsync -av --delete \
-  --exclude '.venv/' --exclude '.venv-export/' --exclude '__pycache__/' --exclude '.git/' \
+  --exclude '.venv/' --exclude 'venv-export/' --exclude '.venv-export/' --exclude '__pycache__/' --exclude '.git/' \
   --exclude 'settings.json' --exclude 'models/' --exclude 'samples/' \
   --exclude 'yolo11n.pt' --exclude 'rust/frame_sender/target/' \
   "$(dirname "$0")/../" "$BOARD:$DEST"

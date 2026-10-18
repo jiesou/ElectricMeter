@@ -6,6 +6,13 @@ export struct EntityCard {
     energy: string,
 }
 
+export struct People {
+    in: int,
+    out: int,
+    net: int,
+    counted: bool,
+}
+
 export struct Room {
     id: string,
     name: string,
@@ -13,6 +20,7 @@ export struct Room {
     power: string,
     energy: string,
     entities: [EntityCard],
+    people: People,
 }
 
 // 预设假数据：给 Slint 预览用，与 mock.py 一致；运行时 PowerStream 的快照会整表覆盖
@@ -32,6 +40,7 @@ export global PowerPageData {
                 { name: "吹风机功率", type: "meter", state: false, power: 900, energy: "46.20" },
                 { name: "吹风机", type: "switch", state: true, power: 0, energy: "" },
             ],
+            people: { in: 0, out: 0, net: 0, counted: false },
         },
         {
             id: "esp-302",
@@ -47,6 +56,7 @@ export global PowerPageData {
                 { name: "吹风机功率", type: "meter", state: false, power: 900, energy: "46.20" },
                 { name: "吹风机", type: "switch", state: true, power: 0, energy: "" },
             ],
+            people: { in: 0, out: 0, net: 0, counted: false },
         },
         {
             id: "esp-303",
@@ -55,6 +65,7 @@ export global PowerPageData {
             power: "0",
             energy: "0.00",
             entities: [],
+            people: { in: 0, out: 0, net: 0, counted: false },
         },
         {
             id: "esp-304",
@@ -70,6 +81,7 @@ export global PowerPageData {
                 { name: "吹风机功率", type: "meter", state: false, power: 900, energy: "46.20" },
                 { name: "吹风机", type: "switch", state: false, power: 0, energy: "" },
             ],
+            people: { in: 0, out: 0, net: 0, counted: false },
         },
     ];
     callback refresh();

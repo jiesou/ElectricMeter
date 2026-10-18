@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { db } from "../core/db.ts";
 import * as hub from "../core/hub.ts";
 import { streamSnapshot } from "../core/sse.ts";
+import * as stays from "../core/stays.ts";
 import { now, byId } from "../core/util.ts";
 
 export const rooms = new Hono();
@@ -14,6 +15,7 @@ const snapshot = () =>
       id: device.id,
       name: device.name,
       online: device.online,
+      occupied: stays.occupied(device.id),
       power: meters.reduce((sum, entity) => sum + (entity.powerW ?? 0), 0),
       energy: meters.reduce((sum, entity) => sum + (entity.energyKwh ?? 0), 0),
       entities,
@@ -51,6 +53,25 @@ rooms.patch("/:device_id", async (c) => {
     where: { id: device_id },
     data: { name: device.name },
   });
+  return c.json(snapshot().find((room) => room.id === device_id));
+});
+
+/** 办理入住：开一段入住区间。用了多少电不记在这儿，统计时回账本做差 */
+rooms.post("/:device_id/checkin", async (c) => {
+  const device_id = c.req.param("device_id");
+  if (!hub.devices.has(device_id))
+    return c.json({ error: `未知客房: ${device_id}` }, 404);
+
+  return c.json({ start_ts: await stays.checkin(device_id) });
+});
+
+/** 办理退房：给这段入住填上结束时间 */
+rooms.post("/:device_id/checkout", async (c) => {
+  const device_id = c.req.param("device_id");
+  if (!hub.devices.has(device_id))
+    return c.json({ error: `未知客房: ${device_id}` }, 404);
+
+  await stays.checkout(device_id);
   return c.json(snapshot().find((room) => room.id === device_id));
 });
 

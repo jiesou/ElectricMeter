@@ -96,7 +96,13 @@ test("客房历史只给窗口内的读数", async () => {
   });
 
   expect(await json(await app.request("/api/rooms/esp-303/history"))).toEqual([
-    { device_id: "esp-303", id: "light-meter", ts: ts - 5_000, powerW: 55 },
+    {
+      device_id: "esp-303",
+      id: "light-meter",
+      ts: ts - 5_000,
+      powerW: 55,
+      energyKwh: null,
+    },
   ]);
 });
 

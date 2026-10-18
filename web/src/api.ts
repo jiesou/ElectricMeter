@@ -5,9 +5,42 @@ export interface Room {
   id: string;
   name: string;
   online: boolean;
+  /** 这间房现在有没有人住：保洁只能动空房的闸 */
+  occupied: boolean;
   power: number;
   energy: number;
   entities: Entity[];
+}
+
+/** /api/stats 一帧的样子，字段口径见 .agents/notes/decisions/统计与入住记录.md */
+export interface Stats {
+  now: number;
+  rooms: StatsRoom[];
+  stays: Bill[];
+  avg_hours: { hour: number; kwh: number }[];
+}
+
+export interface StatsRoom {
+  id: string;
+  name: string;
+  occupied: boolean;
+  start_ts?: number;
+  kwh: number;
+  days: { day: number; kwh: number }[];
+  hours: { hour: number; kwh: number }[];
+  devices: { id: string; name: string; kwh: number }[];
+}
+
+/** 客户用电情况记录表一行 */
+export interface Bill {
+  device_id: string;
+  room: string;
+  start_ts: number;
+  end_ts: number | null;
+  days: number;
+  kwh: number;
+  top: string;
+  percent: number;
 }
 
 /** /api/rooms/:device_id/history 一行 */
@@ -87,4 +120,21 @@ export async function switchEntity(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ state }),
   });
+}
+
+export async function fetchStats(): Promise<Stats> {
+  return (await send("/stats")).json();
+}
+
+export async function checkin(device_id: string): Promise<void> {
+  await send(`/rooms/${device_id}/checkin`, { method: "POST" });
+}
+
+export async function checkout(device_id: string): Promise<void> {
+  await send(`/rooms/${device_id}/checkout`, { method: "POST" });
+}
+
+/** 把服务器这台表往前拨一天 */
+export async function nextDay(): Promise<void> {
+  await send("/clock/next-day", { method: "POST" });
 }

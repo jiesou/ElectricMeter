@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import PageHeader from "../components/PageHeader.vue";
-import StatusTag from "../components/StatusTag.vue";
 
 const stream = "/api/cv/stream";
 </script>
 
 <template>
-  <PageHeader>
-    <StatusTag />
-  </PageHeader>
+  <PageHeader />
 
   <div class="card frame">
     <img :src="stream" alt="实时画面" />

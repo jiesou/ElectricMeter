@@ -8,6 +8,7 @@ import type {
   WSMessageHandler,
 } from "@em/shared";
 import { db } from "./db.ts";
+import { accumulate, loadBaseline } from "./energy.ts";
 import { save, type Point } from "./history.ts";
 import { now } from "./util.ts";
 
@@ -69,6 +70,15 @@ for (const d of await db.device.findMany({
   });
 }
 
+// 每块电表的累计电量从账本最新一行接上：演示样本与实时数据才是一条连续的线
+await loadBaseline(
+  [...devices.values()].flatMap((d) =>
+    [...d.entities.values()]
+      .filter((e) => e.type === "meter")
+      .map((e) => ({ device_id: d.id, id: e.id, energyKwh: e.energyKwh })),
+  ),
+);
+
 const handlers: WSMessageHandler[] = []; // 谁关心谁注册：每个处理器自己认报文类型
 
 handlers.push((_device, reply, m) => {
@@ -112,6 +122,11 @@ handlers.push(async (device, _reply, m) => {
         id: row.id,
         ts: e.ts,
         powerW: row.powerW ?? 0,
+        // 累计电量是服务器侧那条只增不减的线，不是设备报的原值
+        energyKwh:
+          row.energyKwh == null
+            ? undefined
+            : accumulate(device_id, row.id, row.energyKwh),
       });
     // 人数是替房间报的：那间房自己的设备要能看到自己的数
     if (row.type === "people-counter" && device_id !== device.id)
@@ -198,6 +213,11 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
   if (people.length)
     sendTo(device_id, { type: "pub_entities", ts: now(), entities: people });
   for (const notify of onUpdate) notify([]);
+}
+
+/** 拨表时把各设备的最后说话时间一起往前挪，免得刚拨完就被失联判定踢掉 */
+export function shiftLastSeen(ms: number) {
+  for (const d of devices.values()) if (d.lastSeen) d.lastSeen += ms;
 }
 
 export function disconnect(device_id: string) {

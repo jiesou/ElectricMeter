@@ -5,6 +5,8 @@
   --muted: #475569;
   --primary: #1d4ed8;
   --primary-soft: #eff6ff;
+  /* 幽灵柱：历史平均那层，跟主色同色、20% 透明 */
+  --primary-ghost: rgb(29 78 216 / 0.2);
   --green: #15803d;
   --green-soft: #f0fdf4;
   --gray-soft: #f1f5f9;

@@ -1,6 +1,8 @@
 # 统计页与角色切换 plan
 
 > 性质：agent 产出的方案，用户未确认，供调整。定下来之后落 `decisions/`。
+>
+> **已定稿并实现**：口径以 `decisions/历史记录与统计.md`、`decisions/统计与入住记录.md`、`decisions/网页前端设计.md`、`decisions/Mock模式.md` 为准，本文件只作过程留痕。
 
 ## 要加的两样东西
 

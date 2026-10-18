@@ -11,10 +11,11 @@ datasource db {
   provider = "sqlite"
 }
 model Device {
-  id       String   @id
+  id       String            @id
   name     String
   ip       String?
   entities Entity[]
+  usage    EnergyUsageTime[]
 }
 
 model Entity {
@@ -35,14 +36,24 @@ model Entity {
   @@id([device_id, id])
 }
 
-// Entity 的历史读数，只留最近 10 分钟（窗口见 core/history.ts）
+// 账本：某块电表某一刻的读数。一直留着，统计全靠它做差（见 .agents/notes/decisions/历史记录与统计.md）
 model EntityHistory {
   device_id String
   id        String
   ts        Float
-  powerW    Float
+  powerW    Float?
+  energyKwh Float? // 服务器侧累计电量，只增不减
   entity    Entity @relation(fields: [device_id, id], references: [device_id, id], onDelete: Cascade)
 
   @@id([device_id, id, ts])
-  @@index([device_id, ts])
+}
+
+// 一次入住 = 一段起止时间，用了多少电一律现查
+model EnergyUsageTime {
+  device_id String
+  start_ts  Float
+  end_ts    Float?
+  device    Device @relation(fields: [device_id], references: [id], onDelete: Cascade)
+
+  @@id([device_id, start_ts])
 }
