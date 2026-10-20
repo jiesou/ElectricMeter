@@ -109,8 +109,6 @@ class CameraService:
         while self._running:
             ok, frame = cap.read()
             if ok and frame is not None:
-                if idx == 0:
-                    frame = cv2.rotate(frame, cv2.ROTATE_180)
                 with self._locks[idx]:
                     self._frames[idx] = frame.copy()
                     self.h, self.w = frame.shape[:2]
