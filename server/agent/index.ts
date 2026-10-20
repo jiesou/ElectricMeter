@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -10,7 +11,7 @@ export const system = [
 
 /** 跑本项目的 CLI，把它的输出当工具结果交回模型 */
 async function runCli(args: string[]) {
-  const cli = new URL("../../cli/index.ts", import.meta.url).pathname;
+  const cli = join(import.meta.dirname, "../../cli/index.ts");
   const host = `http://127.0.0.1:${process.env.PORT ?? 8080}`;
   const proc = Bun.spawn(["bun", cli, "--host", host, "--json", ...args], {
     stdout: "pipe",
