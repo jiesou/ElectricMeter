@@ -86,6 +86,15 @@ test("客房快照带上在住状态，客房页拿它判空房", async () => {
   expect(done.find((r: any) => r.id === "esp-402").occupied).toBe(false);
 });
 
+test("统计页按房算：大屏不进，没电表的设备照样是一间房", async () => {
+  await device("bigscreen", []);
+  await device("esp-405", []);
+
+  const s = await stats();
+  expect(s.rooms.map((r: any) => r.id)).toEqual(["esp-405"]);
+  expect(room(s, "esp-405").kwh).toBe(0);
+});
+
 test("记录表按入住时间倒序，百分位是超过了多少比例的入住", async () => {
   await device("esp-403", [meter(0)]);
 

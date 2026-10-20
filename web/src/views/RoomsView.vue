@@ -4,13 +4,11 @@ import PageHeader from "../components/PageHeader.vue";
 import RoomCard from "../components/RoomCard.vue";
 import { rooms, search } from "../data.ts";
 
-// 一个实体都没报过的设备不是客房（大屏就是这种：它只替别的房报人数），别画成卡片
-const counters = computed(() => rooms.value.filter((r) => r.entities.length));
-
+// /api/rooms 已经滤掉大屏，拿到的每一台设备就是一间房
 const shown = computed(() => {
   const key = search.value.trim().toLowerCase();
-  if (!key) return counters.value;
-  return counters.value.filter(
+  if (!key) return rooms.value;
+  return rooms.value.filter(
     (room) =>
       room.name.toLowerCase().includes(key) ||
       room.id.toLowerCase().includes(key),
@@ -32,7 +30,7 @@ const shown = computed(() => {
     <RoomCard v-for="room in shown" :key="room.id" :room="room" />
   </div>
   <p v-if="!shown.length" class="empty">
-    {{ counters.length ? "没有匹配的客房" : "还没有客房接入" }}
+    {{ rooms.length ? "没有匹配的客房" : "还没有客房接入" }}
   </p>
 </template>
 

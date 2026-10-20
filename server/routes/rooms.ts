@@ -3,24 +3,28 @@ import { db } from "../core/db.ts";
 import * as hub from "../core/hub.ts";
 import { streamSnapshot } from "../core/sse.ts";
 import * as stays from "../core/stays.ts";
-import { now, byId } from "../core/util.ts";
+import { now, byId, isRoom } from "../core/util.ts";
 
 export const rooms = new Hono();
 
+/** 客房快照：大屏不算房，别的设备有几个算几个 */
 const snapshot = () =>
-  [...hub.devices.values()].sort(byId).map((device) => {
-    const entities = [...device.entities.values()].sort(byId);
-    const meters = entities.filter((entity) => entity.type === "meter");
-    return {
-      id: device.id,
-      name: device.name,
-      online: device.online,
-      occupied: stays.occupied(device.id),
-      power: meters.reduce((sum, entity) => sum + (entity.powerW ?? 0), 0),
-      energy: meters.reduce((sum, entity) => sum + (entity.energyKwh ?? 0), 0),
-      entities,
-    };
-  });
+  [...hub.devices.values()]
+    .filter((device) => isRoom(device.id))
+    .sort(byId)
+    .map((device) => {
+      const entities = [...device.entities.values()].sort(byId);
+      const meters = entities.filter((entity) => entity.type === "meter");
+      return {
+        id: device.id,
+        name: device.name,
+        online: device.online,
+        occupied: stays.occupied(device.id),
+        power: meters.reduce((sum, entity) => sum + (entity.powerW ?? 0), 0),
+        energy: meters.reduce((sum, entity) => sum + (entity.energyKwh ?? 0), 0),
+        entities,
+      };
+    });
 
 rooms.get("/", (c) => c.json(snapshot()));
 rooms.get("/stream", (c) => streamSnapshot(c, snapshot, () => hub.recent));

@@ -57,6 +57,14 @@ test("客房快照组合设备信息、汇总读数和实体", async () => {
   });
 });
 
+test("大屏不算房，别的设备报没报实体都算", async () => {
+  await device("bigscreen", []);
+  await device("esp-308", []);
+
+  const rooms = await json(await app.request("/api/rooms"));
+  expect(rooms.map((r: any) => r.id)).toEqual(["esp-308"]);
+});
+
 test("客房 SSE 立即发送与 REST 相同的快照", async () => {
   await device("esp-302", [
     { id: "light", name: "灯", type: "switch", state: false },

@@ -23,6 +23,9 @@ export const hourStart = (ts: number) => {
   return d.getTime();
 };
 
+/** 是不是一间房：大屏只替别的房报人数，不算房 */
+export const isRoom = (device_id: string) => device_id !== "bigscreen";
+
 /** 展示顺序：设备与实体一律按 id 字母序，跟谁先连上、谁先申报无关 */
 export const byId = (a: { id: string }, b: { id: string }) =>
   a.id.localeCompare(b.id);

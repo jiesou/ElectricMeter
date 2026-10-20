@@ -1,7 +1,7 @@
 import { db } from "./db.ts";
 import { devices } from "./hub.ts";
 import * as stays from "./stays.ts";
-import { DAY, HOUR, byId, dayStart, hourStart, now } from "./util.ts";
+import { DAY, HOUR, byId, dayStart, hourStart, isRoom, now } from "./util.ts";
 
 /** 某块电表在某一刻的累计电量：取那一刻之前最近的一行，直接走主键 */
 async function valueAt(device_id: string, id: string, ts: number) {
@@ -124,7 +124,7 @@ async function avgHours(list: Bill[]) {
 export async function report() {
   const rooms = [];
   for (const [id, device] of devices) {
-    if (!metersOf(id).length) continue; // 没有电表的设备不是客房（大屏就是这样）
+    if (!isRoom(id)) continue; // 大屏只替别人报人数，不是房
     const base = { id, name: device.name, occupied: stays.occupied(id) };
     const stay = await stays.latest(id);
     if (!stay) {
