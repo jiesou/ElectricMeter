@@ -1,22 +1,27 @@
 {
+  // 不用 `cd x && ...`：Windows 默认 PowerShell 5.1 不认 &&。
+  // 切目录一律用 options.cwd，命令本身保持单条，Win / Linux / mac 都能跑。
   "version": "2.0.0",
   "tasks": [
     {
       "label": "dev: server",
       "type": "shell",
-      "command": "cd server && bun run dev",
+      "command": "bun run dev",
+      "options": { "cwd": "${workspaceFolder}/server" },
       "presentation": { "group": "dev" }
     },
     {
       "label": "dev: web",
       "type": "shell",
-      "command": "cd web && bun run dev",
+      "command": "bun run dev --host",
+      "options": { "cwd": "${workspaceFolder}/web" },
       "presentation": { "group": "dev" }
     },
     {
       "label": "dev: sim",
       "type": "shell",
-      "command": "cd server && bun run sim",
+      "command": "bun run sim",
+      "options": { "cwd": "${workspaceFolder}/server" },
       "presentation": { "group": "dev" }
     },
     {
@@ -28,33 +33,55 @@
       "label": "test",
       "type": "shell",
       "command": "bun run test",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": { "group": "test" },
+      "problemMatcher": []
+    },
+    {
+      "label": "check: server",
+      "type": "shell",
+      "command": "bun run check",
+      "options": { "cwd": "${workspaceFolder}/server" },
+      "presentation": { "group": "test" },
+      "problemMatcher": []
+    },
+    {
+      "label": "check: cli",
+      "type": "shell",
+      "command": "bun run check",
+      "options": { "cwd": "${workspaceFolder}/cli" },
       "presentation": { "group": "test" },
       "problemMatcher": []
     },
     {
       "label": "check",
-      "type": "shell",
-      "command": "cd server && bun run check && cd ../cli && bunx tsc --noEmit",
+      "dependsOn": ["check: server", "check: cli"],
+      "dependsOrder": "sequence",
       "presentation": { "group": "test" },
       "problemMatcher": []
     },
     {
       "label": "cli",
       "type": "shell",
-      "command": "cd cli && bun run index.ts",
+      "command": "bun run index.ts",
+      "options": { "cwd": "${workspaceFolder}/cli" },
       "presentation": { "group": "cli" }
     },
     {
       "label": "slintui",
       "type": "shell",
-      "command": "cd slintui && .venv/bin/python main.py",
+      "command": ".venv/bin/python main.py",
+      // Windows 的 venv 目录是 Scripts，可执行文件带 .exe
+      "windows": { "command": ".venv/Scripts/python.exe main.py" },
+      "options": { "cwd": "${workspaceFolder}/slintui" },
       "presentation": { "group": "dev" },
       "problemMatcher": []
     },
     {
       "label": "db: push",
       "type": "shell",
-      "command": "cd server && bun run db:push"
+      "command": "bun run db:push",
+      "options": { "cwd": "${workspaceFolder}/server" }
     }
   ]
 }

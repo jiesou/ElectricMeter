@@ -71,7 +71,7 @@
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**
   - `src/data.ts`
-  - `src/views/*` —— 客房管理 / 统计数据 / 视频监控 / 智能分析（`AgentView.vue`，对话界面是 assistant-ui 的）
+  - `src/views/*` —— 客房管理 / 统计数据 / 视频监控 / AI智能体（`AgentView.vue`，对话界面是 assistant-ui 的）
   - `src/components/assistant-ui/*` —— assistant-ui 注册表原样副本，不动
   - `src/mock-agent.ts` —— 「演示模式」用的假 transport，不联网（现场 API 不通时兜底）
   - 设计意图见 `.agents/notes/decisions/网页前端设计.md`、`.agents/notes/decisions/智能体界面.md`

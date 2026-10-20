@@ -1,0 +1,4 @@
+# Windows 上用默认的 isolated 布局装不稳（工作区里只建出空的 node_modules 目录），锁死成 hoisted。
+# Linux / macOS 上一样能用，不用为平台分叉。
+[install]
+linker = "hoisted"

@@ -53,7 +53,7 @@ server/（Bun + Hono）
 - `web/src/components/assistant-ui/*.vue` —— assistant-ui 注册表的成品组件，**上游原样副本，一个字节都不改**（溯源见下）
 - `web/src/views/AgentView.vue` —— 独立页面：会话列表 + 对话 + 演示模式开关
 - `web/src/mock-agent.ts` —— 演示模式用的假 transport（不联网）
-- `web/src/App.vue` / `router.ts` —— 侧边栏「智能分析」入口，路由 `/agent`
+- `web/src/App.vue` / `router.ts` —— 侧边栏「AI智能体」入口，路由 `/agent`
 - `server/agent/models.ts` —— 模型注册表（现场演示加模型的地方）
 - `server/agent/index.ts` —— 系统提示词 + 工具（`em`：跑本项目 CLI）
 - `server/routes/chat.ts` —— `POST /api/chat`
