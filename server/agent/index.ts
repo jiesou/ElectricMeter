@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import { tool } from "ai";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { Experimental_Agent as Agent, tool } from "ai";
 import { z } from "zod";
 
 export const system = [
@@ -33,3 +34,11 @@ export const tools = {
     execute: ({ args }) => runCli(args),
   }),
 };
+
+const deepseek = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY });
+
+export const agent = new Agent({
+  model: deepseek("deepseek-flash"),
+  instructions: system,
+  tools,
+});
