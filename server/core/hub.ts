@@ -89,10 +89,12 @@ handlers.push((_device, reply, m) => {
  * 板子自己有什么。连上把每个实体的 name/type 报一遍，之后按字段部分更新，没提到的字段保持原样。
  * 报来的都写回库，所以内存这张表始终就是库那张表。
  * 每条实体算哪台设备由报文里的 device_id 说了算，没带就用这条连接的身份 —— 大屏就是这样替各台设备报数的。
+ * 推给网页排在这之后：内存表才是网页读的那份，落盘慢不该拖住跨线那一下。
  */
-handlers.push(async (device, _reply, m) => {
+handlers.push((device, _reply, m) => {
   if (m.type !== "pub_entities") return;
   const points: Point[] = [];
+  const writes: Promise<unknown>[] = [];
   for (const e of (m as EntitiesMessage).entities) {
     // 实体自己指了设备就听它的，没指就报在这条连接的设备名下
     const device_id = e.device_id ?? device.id;
@@ -131,25 +133,28 @@ handlers.push(async (device, _reply, m) => {
     // 人数是替房间报的：那间房自己的设备要能看到自己的数
     if (row.type === "people-counter" && device_id !== device.id)
       sendTo(device_id, { type: "pub_entities", ts: now(), entities: [row] });
-    await db.entity.upsert({
-      where: { device_id_id: { device_id, id: e.id } },
-      create: row,
-      update: {
-        name: row.name,
-        type: row.type,
-        state: row.state,
-        powerW: row.powerW,
-        energyKwh: row.energyKwh,
-        inCount: row.inCount,
-        outCount: row.outCount,
-        netCount: row.netCount,
-        ts: row.ts,
-      },
-    });
+    writes.push(
+      db.entity.upsert({
+        where: { device_id_id: { device_id, id: e.id } },
+        create: row,
+        update: {
+          name: row.name,
+          type: row.type,
+          state: row.state,
+          powerW: row.powerW,
+          energyKwh: row.energyKwh,
+          inCount: row.inCount,
+          outCount: row.outCount,
+          netCount: row.netCount,
+          ts: row.ts,
+        },
+      }),
+    );
   }
-  await save(points);
   recent = points;
   for (const notify of onUpdate) notify(points);
+  writes.push(save(points));
+  return Promise.all(writes).then(() => {});
 });
 
 /** 设备干完活回执：回执里的 state 就是实体现在的状态，写回内存与库，顺手推给网页 */
