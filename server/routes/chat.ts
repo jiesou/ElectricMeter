@@ -1,3 +1,4 @@
+import { createDeepSeek } from "@ai-sdk/deepseek";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -8,22 +9,19 @@ import {
 } from "ai";
 import { Hono } from "hono";
 import { system, tools } from "../agent/index.ts";
-import { defaultModel, models } from "../agent/models.ts";
+
+const deepseek = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY });
 
 export const chat = new Hono();
 
 chat.post("/", async (c) => {
-  const { messages, model } = await c.req.json<{
-    messages: UIMessage[];
-    model?: string;
-  }>();
+  const { messages } = await c.req.json<{ messages: UIMessage[] }>();
 
   const result = streamText({
-    model: models[model ?? defaultModel]!,
+    model: deepseek("deepseek-flash"),
     system,
     messages: await convertToModelMessages(messages),
     tools,
-    stopWhen: stepCountIs(10),
     abortSignal: c.req.raw.signal,
   });
 

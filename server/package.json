@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^3.0.67",
-    "@ai-sdk/openai-compatible": "^3.0.71",
     "@em/shared": "workspace:*",
     "@hono/bun": "^1.0.0",
     "@prisma/adapter-libsql": "7.10.0",
