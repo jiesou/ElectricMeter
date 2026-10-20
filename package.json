@@ -5,7 +5,8 @@
     "shared",
     "server",
     "cli",
-    "web"
+    "web",
+    "web2"
   ],
   "scripts": {
     "test": "bun --cwd=server run test:db && bun test"
