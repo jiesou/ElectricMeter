@@ -101,7 +101,7 @@ export component PeoplePage {
                     width: 100%;
                     height: 100%;
                     frame <=> PeoplePageData.camera-frame;
-                    // 只在人数页渲染：tab 切走，16ms 定时器和推理线程一起停
+                    // 只在这页渲染画面：切走就停这个 16ms 定时器，推理与上报照跑
                     running: AppData.current-tab == 1;
                     request-camera-frame => { PeoplePageData.request-camera-frame(); }
                 }

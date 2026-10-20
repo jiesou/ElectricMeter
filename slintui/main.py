@@ -55,22 +55,15 @@ def main():
         power_stream.toggle_mock()
         refresh()
 
-    # tab 切换只管人数页起停：用电数据流便宜，常驻；推理贵，停在这页之外
-    def tab_changed(index):
-        if index == 1:
-            people_page.start()
-        else:
-            people_page.stop()
-
     def stop_app():
         window.hide()
 
-    window.AppData.tab_changed = tab_changed
     window.AppData.toggle_mock = toggle_mock
     window.AppData.stop_app = stop_app
     window.PowerPageData.refresh = refresh
 
-    tab_changed(window.AppData.current_tab)  # 初始页也走一遍（照老项目 activate_tab）
+    # 推理与上报常驻：切页面只是不渲染画面，人还在数、还在推给服务器
+    people_page.start()
     window.show()
     window.run()
 
