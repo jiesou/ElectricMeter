@@ -141,6 +141,7 @@ class PeoplePage:
         self.viewport.counters = self.calibration.counters
         self.viewport.tracker = ByteTracker()  # 换了画面，旧轨迹全作废
         self.viewport.tracks = []
+        self.viewport.frame = None  # 上一台机位的帧别还留着等图传
         self.data.camera = self.device
         self._push_calibration()
 

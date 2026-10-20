@@ -1,7 +1,8 @@
 """把人数推给服务器：一条 WS 连接替所有标了线的房间报 people-counter。
 
 服务器只认报文里的 device_id，所以这台大屏连上去报什么身份都行（settings.json 的 device_id）。
-有人跨线才推一次，不按秒轮询。
+有人跨线推一次，没人跨线每 KEEPALIVE 秒也推一次 —— 服务器 10 秒收不到话就判失联，
+断线也靠这条周期报文才暴露得出来，不然得等下一个人跨线。
 只管上报，不读回信 —— 清零之类的下行指令要动的时候再单独考虑。
 """
 
@@ -13,6 +14,8 @@ import time
 import websockets
 
 from settings import stored_settings
+
+KEEPALIVE = 3  # 秒：跟下位机心跳一个节奏（shared/types.ts 的 ALIVE）
 
 
 class PeopleReporter:
@@ -62,8 +65,11 @@ class PeopleReporter:
         async with websockets.connect(self._url()) as ws:
             await self._send(ws)  # 连上先报一次全量，服务器不用等下一个人跨线
             while not self.stop_event.is_set():
-                await asyncio.to_thread(self.crossed.wait)
-                self.crossed.clear()
+                try:
+                    await asyncio.wait_for(asyncio.to_thread(self.crossed.wait), KEEPALIVE)
+                    self.crossed.clear()
+                except TimeoutError:
+                    pass  # 没人跨线也要说话：服务器 10 秒没动静就判失联，断线也要这样才发现得了
                 await self._send(ws)
 
     def _run(self):

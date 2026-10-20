@@ -1,9 +1,11 @@
-"""人数监控相机视图，线程结构照老项目 evaluation/camera_viewport.py。
+"""人数监控相机视图，线程结构照老项目 evaluation/camera_viewport.py + udp_frame_uploader.py。
 
 _inference_loop 后台线程一直推理最新帧：推完一帧接着推下一帧，多快算多快，
-没有帧率目标；结果（框、timing）存在实例上。UI 的 16ms 定时回调
-request_camera_frame 每次拿最新帧画上最近的框推给界面——框可以滞后，
-渲染独立持续刷新。
+没有帧率目标，每 2 秒打一行实际帧率；结果（框）存在实例上。UI 的 16ms 定时回调
+request_camera_frame 每次拿最新帧自己画框推给界面——框可以滞后，渲染独立持续刷新。
+
+图传是另一条线程 _sender_loop：推理线程只把画好的帧放进最新帧槽位就完事，
+编码发包（Rust 那步）再慢也拖不到跨线判定上。
 """
 
 import threading
@@ -12,6 +14,8 @@ import time
 import cv2
 import numpy as np
 import slint
+
+SEND_FPS = 10  # 图传帧率：跟老项目 udp_frame_uploader 一样定频，推理该多快还多快
 
 
 class CameraViewport:
@@ -23,6 +27,8 @@ class CameraViewport:
         self.send = send
         self.counted = counted  # 有人跨线就喊一声，上报端等着这个
         self.tracks = []  # 最近一次推理的框，显示时复用（对应老项目 latest_result）
+        self.frame = None  # 画好框、等着图传的那一帧，只留最新
+        self._new_frame = threading.Event()
         self._running = False
         self._lock = threading.Lock()
 
@@ -31,11 +37,14 @@ class CameraViewport:
             return
         self._running = True
         threading.Thread(target=self._inference_loop, daemon=True).start()
+        threading.Thread(target=self._sender_loop, daemon=True).start()
 
     def stop(self):
         self._running = False
+        self._new_frame.set()  # 把等着的图传线程叫醒，好让它看到 _running 退出
 
     def _inference_loop(self):
+        frames, since = 0, time.time()
         while self._running:
             frame = self.read_frame()
             if frame is None:
@@ -43,17 +52,30 @@ class CameraViewport:
                 continue
             with self._lock:
                 self.tracks = self.tracker.update(self.detector.detect(frame))
-                t = self.detector.timing
-                print(f"[People] Timing (ms): preprocess={t['preprocess']:.2f} inference={t['inference']:.2f} "
-                      f"postprocess={t['postprocess']:.2f} total={t['total']:.2f}")
                 crossed = False
                 for counter in self.counters:
                     if counter.update(self.tracks, frame.shape):
                         crossed = True
             if crossed and self.counted:
                 self.counted()
-            if self.send:
-                self.send(self.draw(frame.copy()))
+            self.frame = self.draw(frame.copy())
+            self._new_frame.set()
+            # 推理帧率：跨线晚多久全看它，板端就靠这行读数
+            frames += 1
+            if time.time() - since >= 2:
+                print(f"[People] 推理 {frames / (time.time() - since):.1f} FPS")
+                frames, since = 0, time.time()
+
+    def _sender_loop(self):
+        interval = 1 / SEND_FPS
+        while self._running:
+            self._new_frame.wait()
+            self._new_frame.clear()
+            send, frame = self.send, self.frame
+            if send and frame is not None:
+                start = time.time()
+                send(frame)
+                time.sleep(max(0, interval - (time.time() - start)))  # 按图传自己的节奏，不等下一帧
 
     def draw(self, frame):
         """判定线 + 框画到帧上（显示 / 图传共用）。
