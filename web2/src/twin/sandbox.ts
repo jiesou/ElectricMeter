@@ -129,22 +129,31 @@ export function buildSandbox(rooms: Room[], lights: number): Sandbox {
   group.add(house);
   doors.forEach((door) => views.set(door.id, door.view));
 
-  // 沙盘台面：西边留出配电房和入口小径，北边是后山，南边是溪
-  const west = -houseLength / 2 - 7;
-  const east = houseLength / 2 + 3;
-  const north = -ROW_Z - RD / 2 - 5;
-  const south = ROW_Z + RD / 2 + 4.5;
+  // 院门朝向溪流，客房分列左右，默认全景能看进两侧室内。
+  const west = -ROW_Z - RD / 2 - 1.9;
+  const east = -west;
+  const north = -houseLength / 2 - 3.5;
+  const south = houseLength / 2 + 6;
   const width = east - west;
   const depth = south - north;
   const cx = (west + east) / 2;
   const cz = (north + south) / 2;
   group.add(buildTable(width, depth, m).translateX(cx).translateZ(cz));
 
-  const panel = new Vector3(-houseLength / 2 - 5.5, 0, -1.6);
-  group.add(buildPanel(panel, sorted.length, m));
-  group.add(buildConduits(panel, doors, -houseLength / 2, m));
-  group.add(buildHill(east - 8, north + 1.2, west, east, north, m));
-  group.add(buildLandscape({ west, east, north, south, houseLength, panel }, m));
+  const panel = new Vector3(-houseLength / 2 - 2.6, 0, -3.4);
+  const panelModel = buildPanel(new Vector3(0, 0, 0), sorted.length, m);
+  panelModel.rotation.y = -Math.PI / 2;
+  panelModel.position.copy(panel).add(new Vector3(houseLength / 2, 0, 0));
+  house.add(panelModel);
+  const wiring = buildConduits(panel, doors, -houseLength / 2, m);
+  // house 内仍使用开间方向的坐标，连同配电板和线路一起转向院门正面。
+  const architecture = new Group();
+  group.remove(house);
+  architecture.add(house, wiring);
+  architecture.rotation.y = Math.PI / 2;
+  group.add(architecture);
+  group.add(buildHill(0, north + 0.8, west, east, north, m));
+  group.add(buildLandscape({ west, east, north, south, houseLength, panel: new Vector3(panel.z, 0, -panel.x) }, m));
 
   // 整个沙盘挪到原点，镜头和阴影都围着原点算
   group.children.forEach((child) => {
@@ -158,7 +167,7 @@ export function buildSandbox(rooms: Room[], lights: number): Sandbox {
     }
   });
   const first = doors.find((door) => sorted.find((room) => room.id === door.id)?.online) ?? doors[0];
-  const room = first ? { position: new Vector3(first.x + first.facing * 0.3 - cx, 0, first.facing * ROW_Z - cz), facing: first.facing } : undefined;
+  const room = first ? { position: new Vector3(first.facing * ROW_Z - cx, 0, -first.x - cz), facing: first.facing } : undefined;
   return { group, width, depth, views, room };
 }
 
@@ -199,7 +208,8 @@ function buildRow(rooms: Room[], x0: number, facing: -1 | 1, m: Materials, doors
     unit.rotation.y = facing === -1 ? 0 : Math.PI;
     row.add(unit);
     // 房名贴在门边空地上，统一朝南摆，从主机位看是正的
-    const label = buildLabel(cx - facing * 0.95, BASE + 0.056, zRoom - facing * 0.5);
+    const label = buildLabel(cx - facing * 0.95, BASE + 0.056, facing * (YARD / 2 + HALL + 0.28));
+    label.mesh.rotation.z = -Math.PI / 2;
     view.setLabel = label.draw;
     label.draw(room.name);
     row.add(label.mesh);
@@ -236,7 +246,7 @@ function buildRow(rooms: Room[], x0: number, facing: -1 | 1, m: Materials, doors
   }
 
   // 两端马头墙，中间屋顶留空，保证室内始终可见
-  row.add(buildGable(x0, zMid, m));
+  row.add(buildGable(x0, zMid, m, true));
   row.add(buildGable(x0 + length, zMid, m));
   return row;
 }
@@ -452,10 +462,10 @@ function buildLabel(x: number, y: number, z: number) {
 }
 
 /** 马头墙：三级阶梯，每级压一道檐 */
-function buildGable(x: number, zMid: number, m: Materials) {
+function buildGable(x: number, zMid: number, m: Materials, cut = false) {
   const g = new Group();
   g.add(box(0.27, 0.28, SPAN + 0.32, m.stone, x, BASE, zMid));
-  const steps = [2.2, 2.9, 3.6, 2.9, 2.2];
+  const steps = cut ? [1.35, 1.8, 2.4, 1.8, 1.35] : [2.2, 2.9, 3.6, 2.9, 2.2];
   const seg = (SPAN + 0.3) / steps.length;
   steps.forEach((h, i) => {
     const z = zMid - (SPAN + 0.3) / 2 + seg * (i + 0.5);
@@ -507,6 +517,17 @@ function buildCourtyard(x0: number, length: number, eastOpen: boolean, m: Materi
 
   g.add(courtyardWall(x0 - 0.15, true, m));
   g.add(courtyardWall(x0 + length + 0.15, eastOpen, m));
+  // 尽端后廊把两侧瓦檐连起来，留住庭院的围合感。
+  if (!eastOpen) {
+    const canopy = buildEave(YARD + 0.35, 1.45, m);
+    canopy.rotation.y = Math.PI / 2;
+    canopy.position.set(x0 + length - 0.5, EAVE_Y - 0.12, 0);
+    g.add(canopy);
+    for (const z of [-YARD / 2 + 0.25, 0, YARD / 2 - 0.25]) {
+      g.add(new Mesh(new CylinderGeometry(0.065, 0.08, COL, 10), m.timber).translateX(x0 + length - 1.1).translateY(BASE + COL / 2).translateZ(z));
+    }
+    g.add(box(0.14, 0.18, YARD, m.timber, x0 + length - 1.1, BASE + COL - 0.15, 0));
+  }
   return g;
 }
 
@@ -661,12 +682,12 @@ function buildTable(width: number, depth: number, m: Materials) {
 /** 连续起伏的草坡，颜色随高度变化；树和景石都落在实际坡面上。 */
 function buildHill(cx: number, cz: number, west: number, east: number, north: number, m: Materials) {
   const g = new Group();
-  const left = Math.max(west + 0.2, cx - 9);
-  const right = Math.min(east - 0.2, cx + 9);
-  const depth = 4.7;
+  const left = west + 0.2;
+  const right = east - 0.2;
+  const depth = 3.25;
   const height = (x: number, z: number) => {
     const t = Math.max(0, Math.min(1, (z - north) / depth));
-    const ridge = 1.1 + 0.6 * Math.cos((x - cx) * 0.4) + 0.24 * Math.sin(x * 1.2);
+    const ridge = 0.65 + 0.4 * Math.cos((x - cx) * 0.4) + 0.2 * Math.sin(x * 1.2);
     return Math.pow(Math.sin(t * Math.PI), 1.3) * ridge;
   };
   const geometry = new PlaneGeometry(right - left, depth, 64, 24);
@@ -680,7 +701,7 @@ function buildHill(cx: number, cz: number, west: number, east: number, north: nu
     const z = points.getZ(i);
     const y = height(x, z);
     points.setY(i, y + 0.015);
-    color.setHSL(0.2 + 0.015 * Math.sin(x), 0.16, 0.45 - y * 0.045);
+    color.setHSL(0.23 + 0.015 * Math.sin(x), 0.13, 0.32 - y * 0.025);
     colors.push(color.r, color.g, color.b);
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
@@ -706,8 +727,8 @@ function buildLandscape(
 ) {
   const g = new Group();
   const { west, east, south, houseLength, panel } = area;
-  const streamZ = (x: number) => south - 2.6 + 0.7 * Math.sin(x * 0.22);
-  const bridgeX = -houseLength / 2 - 3;
+  const streamZ = (x: number) => south - 1.55 + 0.28 * Math.sin(x * 0.35);
+  const bridgeX = 0;
 
   const top: [number, number][] = [];
   const bottom: [number, number][] = [];
@@ -724,17 +745,17 @@ function buildLandscape(
   stream.position.y = 0.02;
   stream.userData.noShadow = true;
   g.add(stream);
-  // 河岸用少量景石与灌木收边，避免一条水带直接贴在台面上。
-  for (let x = west + 0.6, i = 0; x < east - 0.5; x += 0.72, i++) {
+  // 河岸石块错落分组，水边留出疏密和低矮植物。
+  for (let x = west + 0.6, i = 0; x < east - 0.5; x += 0.54, i++) {
     for (const side of [-1, 1]) {
       if (Math.abs(x - bridgeX) < 1.2) continue;
-      const z = streamZ(x) + side * (0.95 + 0.2 * Math.sin(x * 0.5)) + Math.sin(i * 7.3) * 0.13;
-      const stone = new Mesh(new IcosahedronGeometry(0.19 + (i % 5) * 0.045, 0), m.rock);
-      stone.position.set(x, 0.09, z);
+      const z = streamZ(x) + side * (0.88 + 0.2 * Math.sin(x * 0.5)) + Math.sin(i * 7.3) * 0.19;
+      const stone = new Mesh(new IcosahedronGeometry(0.15 + (i % 5) * 0.045, 1), m.rock);
+      stone.position.set(x + Math.sin(i * 4.1) * 0.15, 0.025, z);
       stone.rotation.set(i * 0.3, i * 1.7, side * 0.2);
-      stone.scale.set(1.3, 0.8, 0.9);
+      stone.scale.set(1.1 + Math.sin(i * 2) * 0.35, 0.65 + (i % 3) * 0.17, 0.8 + (i % 4) * 0.17);
       g.add(stone);
-      if (i % 4 === 0) {
+      if (i % 3 === 0) {
         const shrub = buildFoliage(0.36, m);
         shrub.position.set(x + 0.25, 0.16, z + side * 0.2);
         g.add(shrub);
@@ -742,43 +763,72 @@ function buildLandscape(
     }
   }
 
-  // 平板石桥 + 两道矮栏
-  const bz = streamZ(bridgeX);
-  g.add(box(1.4, 0.14, 2.8, m.stone, bridgeX, 0.08, bz, m));
-  g.add(box(0.08, 0.3, 2.8, m.paper, bridgeX - 0.66, 0.22, bz, m));
-  g.add(box(0.08, 0.3, 2.8, m.paper, bridgeX + 0.66, 0.22, bz, m));
+  // 叶片沿水岸成簇，用一份网格表现细长的水草。
+  const reeds = new InstancedMesh(new PlaneGeometry(0.045, 0.45), m.leaf, 180);
+  const at = new Object3D();
+  for (let i = 0; i < 180; i++) {
+    const cluster = Math.floor(i / 9);
+    const x = west + 0.7 + (east - west - 1.4) * cluster / 19;
+    const side = cluster % 2 ? -1 : 1;
+    at.position.set(x + Math.sin(i * 2.4) * 0.18, 0.12, streamZ(x) + side * 0.82 + Math.cos(i * 1.7) * 0.1);
+    at.rotation.set(Math.sin(i * 2) * 0.3, i * 2.4, Math.cos(i * 1.3) * 0.3);
+    at.scale.setScalar(0.6 + (i % 5) * 0.15);
+    if (Math.abs(x - bridgeX) < 1) at.scale.setScalar(0);
+    at.updateMatrix();
+    reeds.setMatrixAt(i, at.matrix);
+  }
+  g.add(reeds);
 
-  // 步道：桥头往北拐到院门，岔一支到配电板
-  const path: [number, number][] = [];
-  for (let z = bz - 2; z > 0.6; z -= 0.75) path.push([bridgeX, z]);
-  for (let x = bridgeX + 0.8; x < -houseLength / 2 - 0.4; x += 0.75) path.push([x, 0]);
-  for (let x = bridgeX - 0.8; x > panel.x + 0.6; x -= 0.75) path.push([x, 0]);
-  path.forEach(([x, z]) => g.add(box(0.62, 0.05, 0.5, m.stone, x, 0, z, m)));
+  // 石桥分段起拱，栏柱留出水面，避免前景成为一块厚板。
+  const bz = streamZ(bridgeX);
+  for (let i = 0; i < 9; i++) {
+    const z = -1.4 + (i + 0.5) * 2.8 / 9;
+    const rise = 0.12 + Math.cos(z / 1.4 * Math.PI / 2) * 0.28;
+    g.add(box(1.4, 0.13, 2.8 / 9 + 0.01, m.stone, bridgeX, rise, bz + z, m));
+    for (const side of [-1, 1]) {
+      g.add(box(0.07, 0.07, 2.8 / 9 + 0.02, m.stone, bridgeX + side * 0.66, rise + 0.48, bz + z));
+      if (i % 2 === 0) g.add(box(0.09, 0.4, 0.09, m.stone, bridgeX + side * 0.66, rise + 0.13, bz + z));
+    }
+  }
+
+  // 桥、院门和配电板之间铺连续的石径，收拢入口前场。
+  const gateZ = houseLength / 2;
+  const paving = pavingTexture(2, bz - gateZ);
+  const path = new Mesh(new PlaneGeometry(2, bz - gateZ), new MeshStandardMaterial({ map: paving, roughness: 0.94 }));
+  path.rotation.x = -Math.PI / 2;
+  path.position.set(0, 0.025, (bz + gateZ) / 2);
+  g.add(path);
+  const branch = new Mesh(new PlaneGeometry(Math.abs(panel.x), 1.15), new MeshStandardMaterial({ map: pavingTexture(Math.abs(panel.x), 1.15), roughness: 0.94 }));
+  branch.rotation.x = -Math.PI / 2;
+  branch.position.set(panel.x / 2, 0.03, panel.z + 0.6);
+  g.add(branch);
 
   // 用固定种子撒树，避开房子、溪、步道和配电板
   let seed = 7;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const houseHalfX = houseLength / 2 + 1;
-  const houseHalfZ = ROW_Z + RD / 2 + 0.8;
+  const houseHalfX = ROW_Z + RD / 2;
+  const houseHalfZ = houseLength / 2;
   let planted = 0;
   const treePositions: [number, number][] = [];
-  for (let tries = 0; tries < 400 && planted < 11; tries++) {
+  for (let tries = 0; tries < 400 && planted < 8; tries++) {
     const x = west + 1 + random() * (east - west - 2);
     const z = -houseHalfZ + random() * (south - 1 + houseHalfZ);
     const size = random() < 0.65 ? 0.7 + random() * 0.5 : 0.9 + random() * 0.4;
     const treeRadius = size * 1.15;
-    const nearHouse = Math.abs(x) < houseHalfX + treeRadius + 0.55 && Math.abs(z) < houseHalfZ + treeRadius + 0.55;
+    const nearHouse = Math.abs(x) < houseHalfX + treeRadius * 0.45 && Math.abs(z) < houseHalfZ + treeRadius * 0.45;
     const nearStream = Math.abs(z - streamZ(x)) < 1.6;
-    const nearPath = Math.abs(x - bridgeX) < 1.2 || (Math.abs(z) < 1.4 && x < -houseHalfX + 1);
+    const nearPath = Math.abs(x - bridgeX) < 1.2 || (Math.abs(z - panel.z - 0.6) < 0.9 && x > panel.x - 0.5 && x < 0.5);
     const nearPanel = Math.abs(x - panel.x) < 2.5 && Math.abs(z - panel.z) < 1.8;
     const nearTree = treePositions.some(([tx, tz]) => Math.hypot(x - tx, z - tz) < treeRadius + 1.1);
     if (nearHouse || nearStream || nearPath || nearPanel || nearTree) continue;
     planted++;
     treePositions.push([x, z]);
     g.add(ballTree(x, z, 0, size, m));
-    const bed = new Mesh(new CylinderGeometry(size * 0.85, size, 0.07, 12), m.earth);
-    bed.position.set(x, 0.035, z);
-    g.add(bed);
+    for (let i = 0; i < 3; i++) {
+      const shrub = buildFoliage(size * (0.25 + i * 0.05), m);
+      shrub.position.set(x + Math.cos(i * 2.4) * size * 0.7, 0.18, z + Math.sin(i * 2.4) * size * 0.7);
+      g.add(shrub);
+    }
   }
   return g;
 }
