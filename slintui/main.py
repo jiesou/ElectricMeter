@@ -8,7 +8,7 @@ import slint
 
 from people import PeoplePage
 from power import PowerStream
-from settings import stored_settings
+from settings import DEFAULT_MODEL, stored_settings
 
 
 class AppWindow(slint.loader.ui.app_window.AppWindow):
@@ -22,7 +22,7 @@ EntityCard = slint.loader.ui.power_page.EntityCard
 def bind_settings_page(window):
     data = window.SettingsPageData
     data.server_ip = stored_settings.get_server_ip()
-    data.model = stored_settings.get("model", "")
+    data.model = stored_settings.get("model") or DEFAULT_MODEL
     data.video = stored_settings.get("video", "") or "摄像头"
     data.udp = stored_settings.get("image_feed_udp_url", "")
 
