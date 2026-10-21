@@ -9,7 +9,6 @@ import { stats } from "./stats.ts";
 
 export const api = new Hono();
 
-/** chat.ts 现场重写，随时可能不在：加载不了就退化成 503，别拖垮整个后端 */
 const chat = await import("./chat.ts")
   .then((m) => m.chat)
   .catch(() => {

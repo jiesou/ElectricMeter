@@ -1,4 +1,4 @@
-"""UDP 图传验收：Rust 发（Python 扩展）→ 服务器收（server/core/udp_camera.ts）→ MJPEG 取帧。
+"""UDP 图传验收：Rust 发（Python 扩展）→ 服务器收（server/core/udp_camera.ts）→ 从 /api/cv/frame 取回一帧。
 
 用法：先起服务器（cd server && bun run start），再 .venv/bin/python check_udp.py
 """
@@ -43,17 +43,10 @@ def check_protocol(frame):
           f"净荷上限 {CHUNK_PAYLOAD}B 重组 {len(jpeg)}B → 解码 {img.shape}")
 
 
-def grab_mjpeg(url):
-    """从 MJPEG 流里取第一张完整 JPEG"""
+def grab_frame(url):
+    """从服务器取回最新一帧 JPEG"""
     with urllib.request.urlopen(url, timeout=5) as resp:
-        buf = b""
-        while b"\xff\xd9" not in buf:
-            chunk = resp.read(4096)
-            if not chunk:
-                return None
-            buf += chunk
-        start = buf.index(b"\xff\xd8")
-        return buf[start:buf.index(b"\xff\xd9", start) + 2]
+        return resp.read()
 
 
 def main():
@@ -73,9 +66,9 @@ def main():
         time.sleep(1 / 10)
     time.sleep(0.3)
 
-    print("== 3. 从服务器的 MJPEG 取回一帧 ==")
-    received = grab_mjpeg(f"{SERVER}/api/cv/stream")
-    if received is None:
+    print("== 3. 从服务器取回一帧 ==")
+    received = grab_frame(f"{SERVER}/api/cv/frame")
+    if not received:
         print("没取到帧（服务器起了吗？）")
         return
     img = cv2.imdecode(np.frombuffer(received, np.uint8), cv2.IMREAD_COLOR)

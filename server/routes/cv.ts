@@ -3,38 +3,18 @@ import { getLatestFrame } from "../core/udp_camera.ts";
 
 export const cv = new Hono();
 
-/** MJPEG 流：浏览器 <img src="/api/cv/stream"> 就能看大屏推上来的画面 */
-cv.get("/stream", (c) => {
-  let timer: ReturnType<typeof setInterval> | null = null;
+/**
+ * 单帧 JPEG：网页拿到一帧再要下一帧。MJPEG 那种长连接在手机 Safari 上会排队，
+ * 网络一慢就攒出几秒延迟且追不回来；这样最多只落后一帧。
+ * X-Seq 让网页判断这帧是不是新的，没变就不用重画。
+ */
+cv.get("/frame", (c) => {
+  const frame = getLatestFrame();
+  if (!frame) return c.body(null, 204);
 
-  const body = new ReadableStream({
-    start(controller) {
-      const encoder = new TextEncoder();
-      timer = setInterval(() => {
-        const frame = getLatestFrame();
-        if (!frame) return;
-        try {
-          controller.enqueue(
-            encoder.encode(
-              `--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.length}\r\n\r\n`,
-            ),
-          );
-          controller.enqueue(frame);
-          controller.enqueue(encoder.encode("\r\n"));
-        } catch {
-          if (timer) clearInterval(timer);
-        }
-      }, 100); // 10fps
-    },
-    cancel() {
-      if (timer) clearInterval(timer);
-    },
-  });
-
-  return c.newResponse(body, {
-    headers: {
-      "Content-Type": "multipart/x-mixed-replace; boundary=frame",
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    },
+  return c.newResponse(frame.data, 200, {
+    "Content-Type": "image/jpeg",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "X-Seq": String(frame.seq),
   });
 });
