@@ -9,6 +9,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import type { Entity } from "@em/shared";
 import type { Room } from "../types";
 import { createMaterials, type Materials } from "./materials";
+import { pavingMaterial } from "./surfaces";
 
 // 江南合院剖切沙盘：保留回廊瓦檐，客房揭顶，墙剖到窗台高
 // 单位按米：客房开间、进深、剖切墙高、墙厚、台基高、回廊深、天井深、廊柱高
@@ -173,7 +174,24 @@ export function buildSandbox(rooms: Room[], lights: number): Sandbox {
 
 /** 底面贴在 y 上的方块，结构件保留很淡的接缝 */
 function box(w: number, h: number, d: number, material: Material, x: number, y: number, z: number, m?: Materials) {
-  const mesh = new Mesh(new BoxGeometry(w, h, d), material);
+  const plaster = material.name === "plaster";
+  const geometry = new BoxGeometry(w, h, d, 1, plaster ? 4 : 1, 1);
+  if (plaster) {
+    // 灰泥按两米一幅铺开，不随墙面长宽拉伸。
+    const position = geometry.attributes.position!;
+    const normal = geometry.attributes.normal!;
+    const uv = geometry.attributes.uv!;
+    const colors: number[] = [];
+    for (let i = 0; i < position.count; i++) {
+      const u = normal.getX(i) ? position.getZ(i) + z : position.getX(i) + x;
+      const v = normal.getY(i) ? position.getZ(i) + z : position.getY(i) + y + h / 2;
+      uv.setXY(i, u / 2, v / 2);
+      const clean = Math.min((position.getY(i) + h / 2) / 0.35, 1);
+      colors.push(0.84 + clean * 0.16, 0.83 + clean * 0.17, 0.8 + clean * 0.2);
+    }
+    geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+  }
+  const mesh = new Mesh(geometry, material);
   mesh.position.set(x, y + h / 2, z);
   if (m) mesh.add(new LineSegments(new EdgesGeometry(mesh.geometry, 30), m.line));
   return mesh;
@@ -480,8 +498,7 @@ function buildGable(x: number, zMid: number, m: Materials, cut = false) {
 /** 天井：石板地、方池、一棵桂花，东西两道院墙开门 */
 function buildCourtyard(x0: number, length: number, eastOpen: boolean, m: Materials) {
   const g = new Group();
-  const pavingMap = pavingTexture(length, YARD);
-  const paving = new Mesh(new PlaneGeometry(length, YARD), new MeshStandardMaterial({ map: pavingMap, bumpMap: pavingMap, bumpScale: 0.025, roughness: 0.94 }));
+  const paving = new Mesh(new PlaneGeometry(length, YARD), pavingMaterial(length, YARD));
   paving.rotation.x = -Math.PI / 2;
   paving.position.set(x0 + length / 2, 0.01, 0);
   g.add(paving);
@@ -558,36 +575,6 @@ function courtyardWall(x: number, gate: boolean, m: Materials) {
     g.add(roof);
   }
   return g;
-}
-
-function pavingTexture(w: number, d: number) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#777b73";
-  ctx.fillRect(0, 0, 256, 256);
-  // 错缝铺的长条石板
-  for (let row = 0; row < 4; row++) {
-    const y = row * 64;
-    for (let x = row % 2 ? -64 : 0; x < 256; x += 128) {
-      const shade = 158 + ((row * 13 + x * 7) % 17);
-      ctx.fillStyle = `rgb(${shade},${shade + 1},${shade - 5})`;
-      ctx.fillRect(x + 1, y + 1, 126, 62);
-      ctx.fillStyle = "rgba(255,255,245,0.16)";
-      ctx.fillRect(x + 2, y + 2, 124, 1);
-    }
-  }
-  for (let i = 0; i < 4000; i++) {
-    ctx.fillStyle = i % 2 ? "rgba(255,255,240,0.08)" : "rgba(40,45,35,0.06)";
-    ctx.fillRect((i * 73) % 256, Math.floor(i * 39.7) % 256, 1, 1);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.wrapS = texture.wrapT = RepeatWrapping;
-  texture.repeat.set(w / 2.4, d / 1.2);
-  texture.anisotropy = 8;
-  return texture;
 }
 
 /* ===== 配电与线路 ===== */
@@ -675,7 +662,12 @@ function buildConduits(panel: Vector3, doors: Door[], houseWest: number, m: Mate
 function buildTable(width: number, depth: number, m: Materials) {
   const g = new Group();
   g.add(soft(width + 0.6, 0.65, depth + 0.6, m.wood, 0, -0.95, 0, 0.08));
-  g.add(box(width, 0.3, depth, m.board, 0, -0.3, 0, m));
+  g.add(box(width, 0.3, depth, m.soil, 0, -0.3, 0));
+  for (const map of [m.board.map, m.board.bumpMap, m.board.roughnessMap]) map!.repeat.set(width / 2, depth / 2);
+  const grass = new Mesh(new PlaneGeometry(width, depth), m.board);
+  grass.rotation.x = -Math.PI / 2;
+  grass.position.y = 0.003;
+  g.add(grass);
   return g;
 }
 
@@ -696,12 +688,14 @@ function buildHill(cx: number, cz: number, west: number, east: number, north: nu
   const points = geometry.attributes.position!;
   const colors: number[] = [];
   const color = new Color();
+  const uv = geometry.attributes.uv!;
   for (let i = 0; i < points.count; i++) {
     const x = points.getX(i);
     const z = points.getZ(i);
     const y = height(x, z);
     points.setY(i, y + 0.015);
-    color.setHSL(0.23 + 0.015 * Math.sin(x), 0.13, 0.32 - y * 0.025);
+    uv.setXY(i, x / 2, z / 2);
+    color.setScalar(0.95 - y * 0.07);
     colors.push(color.r, color.g, color.b);
   }
   geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
@@ -793,12 +787,11 @@ function buildLandscape(
 
   // 桥、院门和配电板之间铺连续的石径，收拢入口前场。
   const gateZ = houseLength / 2;
-  const paving = pavingTexture(2, bz - gateZ);
-  const path = new Mesh(new PlaneGeometry(2, bz - gateZ), new MeshStandardMaterial({ map: paving, roughness: 0.94 }));
+  const path = new Mesh(new PlaneGeometry(2, bz - gateZ), pavingMaterial(2, bz - gateZ));
   path.rotation.x = -Math.PI / 2;
   path.position.set(0, 0.025, (bz + gateZ) / 2);
   g.add(path);
-  const branch = new Mesh(new PlaneGeometry(Math.abs(panel.x), 1.15), new MeshStandardMaterial({ map: pavingTexture(Math.abs(panel.x), 1.15), roughness: 0.94 }));
+  const branch = new Mesh(new PlaneGeometry(Math.abs(panel.x), 1.15), pavingMaterial(Math.abs(panel.x), 1.15));
   branch.rotation.x = -Math.PI / 2;
   branch.position.set(panel.x / 2, 0.03, panel.z + 0.6);
   g.add(branch);
@@ -889,6 +882,7 @@ export function disposeSandbox(group: Group) {
     const standard = material as MeshStandardMaterial;
     standard.map?.dispose();
     if (standard.bumpMap !== standard.map) standard.bumpMap?.dispose();
+    standard.roughnessMap?.dispose();
     material.dispose();
   });
 }

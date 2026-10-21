@@ -51,22 +51,22 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 .twin {
   position: fixed;
   inset: 0;
-  background: #191d20;
+  background: #d8d5ce;
 }
 
-/* 四角压一圈暗角，视线收向台面 */
+/* 轻微收暗边缘，让模型留在画面中心 */
 .twin::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 55%, rgb(0 0 0 / 0.45));
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(74 65 51 / 0.08));
 }
 
 .corner {
   position: absolute;
   z-index: 1;
-  color: #edeae4;
+  color: #37382f;
 }
 
 .corner--top {
@@ -75,7 +75,7 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
   display: flex;
   align-items: center;
   gap: 16px;
-  text-shadow: 0 2px 18px rgb(0 0 0 / 0.45);
+  text-shadow: 0 1px 12px rgb(255 255 255 / 0.4);
 }
 
 .corner--bottom {
@@ -93,17 +93,17 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 .views button {
   min-height: 38px;
   padding: 8px 13px;
-  border: 1px solid rgb(231 223 211 / 0.18);
+  border: 1px solid rgb(90 80 64 / 0.22);
   border-radius: 8px;
-  background: rgb(24 28 33 / 0.8);
-  color: #ded7ca;
+  background: rgb(250 248 241 / 0.82);
+  color: #45463c;
   cursor: pointer;
 }
 
 .views button:hover,
 .views button:focus-visible {
-  border-color: #d5ae76;
-  color: #f4cf97;
+  border-color: #986f3d;
+  color: #86561f;
 }
 
 .views button:disabled {
@@ -120,7 +120,7 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 
 .eyebrow {
   margin-bottom: 3px;
-  color: #a39a8d;
+  color: #626354;
   font-size: 10px;
   letter-spacing: 0.2em;
 }
@@ -130,16 +130,15 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
   bottom: 22px;
   width: min(440px, calc(100vw - 48px));
   padding: 14px 16px 13px;
-  border: 1px solid rgb(231 223 211 / 0.14);
+  border: 1px solid rgb(90 80 64 / 0.16);
   border-radius: 14px;
-  background: rgb(24 28 33 / 0.76);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 14px 40px rgb(0 0 0 / 0.2);
+  background: rgb(250 248 241 / 0.94);
+  box-shadow: 0 10px 32px rgb(64 56 43 / 0.08);
 }
 
 .metrics__label {
   margin-bottom: 10px;
-  color: #aaa196;
+  color: #626354;
   font-size: 12px;
   letter-spacing: 0.12em;
 }
@@ -152,21 +151,21 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 
 .metrics strong {
   display: block;
-  color: #f4b860;
+  color: #956020;
   font-size: 21px;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
 .metrics strong small {
-  color: #9b958d;
+  color: #6c6d60;
   font-size: 12px;
 }
 
 .metrics span {
   display: block;
   margin-top: 4px;
-  color: #938d84;
+  color: #666759;
   font-size: 11px;
 }
 
@@ -175,7 +174,7 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
   align-items: center;
   gap: 6px;
   margin-top: 12px;
-  color: #858078;
+  color: #666759;
   font-size: 10px;
 }
 
@@ -188,26 +187,26 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 }
 
 .legend__dot--power { background: #fbbf24; box-shadow: 0 0 8px #f59e0b; }
-.legend__dot--water { background: #83b8bd; }
+.legend__dot--water { background: #467d7a; }
 
 .hint {
   right: 24px;
   bottom: 68px;
-  color: #817b73;
+  color: #626354;
   font-size: 11px;
   letter-spacing: 0.06em;
 }
 
 .back {
   padding: 8px 14px;
-  border: 1px solid #2e323a;
+  border: 1px solid rgb(90 80 64 / 0.22);
   border-radius: 10px;
-  background: rgb(30 33 39 / 0.7);
-  color: #a29d94;
+  background: rgb(250 248 241 / 0.82);
+  color: #55584a;
 }
 
 .back:hover {
-  color: #edeae4;
+  color: #37382f;
 }
 
 @media (max-width: 640px) {

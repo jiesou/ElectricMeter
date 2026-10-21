@@ -42,15 +42,16 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   renderer.toneMappingExposure = 1.05;
 
   const scene = new ThreeScene();
-  scene.background = new Color(0x292725);
-  scene.fog = new Fog(0x292725, 75, 180);
+  scene.background = new Color(0xd8d5ce);
+  const fog = new Fog(0xd8d5ce, 75, 180);
+  scene.fog = fog;
   const pmrem = new PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.3;
 
-  // 傍晚的光：暖色主光投影、天光补暗部，压得略暗一点，台灯和琥珀光才显得出来
+  // 中性的展厅光保留材质本色，台灯继续由客房开关点亮
   scene.add(new HemisphereLight(0xdce5ed, 0x504131, 0.6));
-  const sun = new DirectionalLight(0xffd3a5, 2.5);
+  const sun = new DirectionalLight(0xffead4, 2.5);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0004;
@@ -62,7 +63,7 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
   scene.add(fill);
 
   // 展台接住底座的阴影，让沙盘有落地感。
-  const ground = new Mesh(new PlaneGeometry(400, 400), new MeshStandardMaterial({ color: 0x191b1b, roughness: 1 }));
+  const ground = new Mesh(new PlaneGeometry(400, 400), new MeshStandardMaterial({ color: 0xb8b7b0, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.98;
   ground.receiveShadow = true;
@@ -117,6 +118,9 @@ export function createScene(canvas: HTMLCanvasElement): Scene {
     camera.position.copy(direction.multiplyScalar(distance * 1.12)).add(target);
     controls.minDistance = 10;
     controls.maxDistance = distance * 1.6;
+    // 窄屏镜头退得更远，雾也往后退，避免模型褪成白色。
+    fog.near = distance + radius * 2;
+    fog.far = fog.near + radius * 8;
 
     sun.position.set(-0.85, 0.95, -0.4).normalize().multiplyScalar(radius * 2.5);
     const shadow = sun.shadow.camera;

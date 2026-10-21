@@ -1,11 +1,12 @@
 import { CanvasTexture, DoubleSide, LineBasicMaterial, MeshBasicMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, SRGBColorSpace } from "three";
+import { groundMaterial, plasterMaterial, woodFloorMaterial } from "./surfaces";
 
-// 材质在本地生成，离线演示也不需要下载贴图；固定种子让每次重建保持一致。
-function texture(kind: "plaster" | "wood" | "floor" | "linen" | "ground" | "water" | "stone") {
+// 小件纹理在本地生成，墙面和地面使用本地图片，离线演示无需下载。
+function texture(kind: "plaster" | "wood" | "linen" | "water" | "stone") {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = kind === "wood" || kind === "floor" ? "#b79876" : "#eeeae2";
+  ctx.fillStyle = kind === "wood" ? "#b79876" : "#eeeae2";
   ctx.fillRect(0, 0, 256, 256);
   let seed = 17;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -25,7 +26,7 @@ function texture(kind: "plaster" | "wood" | "floor" | "linen" | "ground" | "wate
       ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     }
   }
-  if (kind === "wood" || kind === "floor") {
+  if (kind === "wood") {
     for (let i = 0; i < 180; i++) {
       const x = random() * 256;
       ctx.strokeStyle = `rgba(67,42,24,${0.02 + random() * 0.1})`;
@@ -34,34 +35,11 @@ function texture(kind: "plaster" | "wood" | "floor" | "linen" | "ground" | "wate
       ctx.bezierCurveTo(x + random() * 8, 80, x - random() * 8, 170, x, 256);
       ctx.stroke();
     }
-    if (kind === "floor") {
-      for (let x = 0; x < 256; x += 64) {
-        ctx.fillStyle = `rgba(55,38,20,${0.02 + random() * 0.07})`;
-        ctx.fillRect(x, 0, 64, 256);
-        ctx.fillStyle = "rgba(55,38,20,0.35)";
-        ctx.fillRect(x, 0, 1, 256);
-        const joint = (x * 3 + 40) % 128;
-        for (let y = joint; y < 256; y += 128) ctx.fillRect(x, y, 64, 1);
-      }
-    }
   } else if (kind === "linen") {
     ctx.fillStyle = "rgba(80,66,48,0.07)";
     for (let i = 0; i < 256; i += 4) {
       ctx.fillRect(i, 0, 1, 256);
       ctx.fillRect(0, i, 256, 1);
-    }
-  } else if (kind === "ground") {
-    ctx.fillStyle = "#8f957b";
-    ctx.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 70; i++) {
-      const x = random() * 256;
-      const y = random() * 256;
-      const radius = 8 + random() * 28;
-      const patch = ctx.createRadialGradient(x, y, 0, x, y, radius);
-      patch.addColorStop(0, i % 3 ? "rgba(77,91,51,0.08)" : "rgba(121,89,60,0.08)");
-      patch.addColorStop(1, "rgba(100,100,70,0)");
-      ctx.fillStyle = patch;
-      ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     }
   } else if (kind === "water") {
     ctx.fillStyle = "#808080";
@@ -113,22 +91,20 @@ export function createMaterials() {
   const plaster = texture("plaster");
   const stone = texture("stone");
   const wood = texture("wood");
-  const floor = texture("floor");
-  floor.repeat.set(2, 2);
   const linen = texture("linen");
-  const ground = texture("ground");
-  ground.repeat.set(3, 3);
+  const terrain = groundMaterial();
+  terrain.vertexColors = true;
   const leaves = leavesTexture();
   const water = texture("water");
   water.colorSpace = NoColorSpace;
   water.repeat.set(2, 2);
   const matte = (color: number) => new MeshStandardMaterial({ color, roughness: 0.92 });
   return {
-    paper: new MeshStandardMaterial({ color: 0xeee5d6, map: plaster, roughness: 0.96, bumpMap: plaster, bumpScale: 0.012 }),
-    floor: new MeshStandardMaterial({ color: 0xb8a28b, map: floor, roughness: 0.8 }),
+    paper: plasterMaterial(),
+    floor: woodFloorMaterial(),
     stone: new MeshStandardMaterial({ color: 0x898b83, map: stone, roughness: 0.88, bumpMap: stone, bumpScale: 0.035 }),
-    board: new MeshStandardMaterial({ color: 0xa6a58e, map: ground, roughness: 1 }),
-    terrain: new MeshStandardMaterial({ vertexColors: true, map: ground, roughness: 1 }),
+    board: groundMaterial(),
+    terrain,
     soft: matte(0xf4f0e6),
     shade: matte(0x535951),
     wood: new MeshStandardMaterial({ color: 0x493326, map: wood, roughness: 0.48 }),
