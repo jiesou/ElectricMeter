@@ -3,8 +3,6 @@
   "ws_url": "ws://192.168.11.192:8080/ws",
   "api_url": "http://192.168.11.192:8080/api",
   "image_feed_udp_url": "udp://192.168.11.192:8080",
-  "model": "models/yolo11n.onnx",
-  "video": "samples/vtest.avi",
   "cameras": [
     {
       "device": "samples/vtest.avi",

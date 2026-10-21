@@ -1,10 +1,14 @@
 import json
 import os
+import platform
 from typing import Any
 
 
 DEFAULT_SERVER_IP = "192.168.11.192"
 PORT = 8080
+
+# 板子走 RKNN/NPU，本机走 onnxruntime，两份模型都在 models/ 里
+DEFAULT_MODEL = "models/yolo11n.rknn" if platform.machine() == "aarch64" else "models/yolo11n.onnx"
 
 DEFAULT_LINE = [[0.5, 0.05], [0.5, 0.95]]  # 新加的判定线：画面正中、竖直，两端留一点边给把手
 

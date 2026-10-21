@@ -9,7 +9,7 @@ import time
 import cv2
 
 from people.calibration import Calibration
-from settings import DEFAULT_LINE, stored_settings
+from settings import DEFAULT_LINE, DEFAULT_MODEL, stored_settings
 from vision.counter import LineCounter
 from vision.detector import Detector
 from vision.tracker import ByteTracker
@@ -35,7 +35,7 @@ def main():
 
     cap = cv2.VideoCapture(a.video)
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    detector = Detector(stored_settings.get("model", "models/yolo11n.onnx"))
+    detector = Detector(stored_settings.get("model") or DEFAULT_MODEL)
     tracker = ByteTracker()
 
     writer = None

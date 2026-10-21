@@ -6,10 +6,21 @@ dependencies = [
     "slint>=1.18.1b1",
     "opencv-python",
     "numpy",
-    "onnxruntime",
+    "onnxruntime ; platform_machine != 'aarch64'",
+    "rknn-toolkit-lite2 ; sys_platform == 'linux' and platform_machine == 'aarch64'",
     "websockets",
     "frame-sender",
 ]
 
+[tool.uv]
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
 [tool.uv.sources]
-frame-sender = { path = "rust/frame_sender", editable = true }
+frame-sender = [
+    { path = "wheels/frame_sender-0.1.0-cp311-abi3-manylinux_2_34_aarch64.whl", marker = "platform_machine == 'aarch64'" },
+    { path = "wheels/frame_sender-0.1.0-cp311-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", marker = "platform_machine == 'x86_64'" },
+]
+rknn-toolkit-lite2 = { path = "wheels/rknn_toolkit_lite2-2.3.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl" }

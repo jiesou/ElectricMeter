@@ -12,7 +12,7 @@ import slint
 
 import frame_sender
 from camera_service import camera_service
-from settings import stored_settings
+from settings import DEFAULT_MODEL, stored_settings
 from vision.detector import Detector
 from vision.tracker import ByteTracker
 
@@ -52,7 +52,7 @@ class PeoplePage:
         self.sender = self._sender()
         self.streaming = self.sender is not None
         self.viewport = CameraViewport(read_frame,
-                                       Detector(stored_settings.get("model", "models/yolo11n.onnx")),
+                                       Detector(stored_settings.get("model") or DEFAULT_MODEL),
                                        ByteTracker(),
                                        self.calibration.counters,
                                        send=self.sender if self.streaming else None,

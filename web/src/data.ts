@@ -32,8 +32,8 @@ export const search = ref("");
 export const stats = ref<Stats | null>(null);
 
 export type Role = "访客" | "保洁" | "管理";
-/** 右上角切角色，默认访客 */
-export const role = ref<Role>("访客");
+/** 右上角切角色，默认管理 */
+export const role = ref<Role>("管理");
 
 /** 这个角色能不能动这间房的闸：访客一律不行，保洁只动空房，管理都能动 */
 export const canSwitch = (room: Room) =>

@@ -7,10 +7,12 @@ server/generated/
 *.db-wal
 *.db-shm
 
-# slintui：模型与测试素材不入库，用脚本下载
+# slintui：模型入库（板子直接 git pull 就能跑），测试素材不入库
 slintui/.venv/
 slintui/.venv-export/
-slintui/models/
+slintui/models/*
+!slintui/models/yolo11n.onnx
+!slintui/models/yolo11n.rknn
 slintui/samples/
 slintui/yolo11n.pt
 __pycache__/
