@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import DataStatus from "../components/DataStatus.vue";
 import { rooms, status } from "../data";
 import TwinCanvas from "../twin/TwinCanvas.vue";
+const twinCanvas = ref<InstanceType<typeof TwinCanvas>>();
 
 const totalPower = computed(() => rooms.value.filter((room) => room.online).reduce((sum, room) => sum + room.power, 0));
 const onlineCount = computed(() => rooms.value.filter((room) => room.online).length);
@@ -11,7 +12,7 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 
 <template>
   <div class="twin">
-    <TwinCanvas />
+    <TwinCanvas ref="twinCanvas" />
     <header class="corner corner--top">
       <div>
         <p class="eyebrow">DIGITAL TWIN · 01</p>
@@ -19,6 +20,10 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
       </div>
       <DataStatus :status="status" />
     </header>
+    <div class="corner views" role="group" aria-label="沙盘取景">
+      <button type="button" @click="twinCanvas?.resetView()">沙盘全景</button>
+      <button type="button" :disabled="!rooms.length" @click="twinCanvas?.focusRoom()">客房近景</button>
+    </div>
     <section class="corner metrics" aria-label="实时运行概览">
       <p class="metrics__label">实时运行概览</p>
       <div class="metrics__grid">
@@ -46,7 +51,7 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 .twin {
   position: fixed;
   inset: 0;
-  background: #101419;
+  background: #191d20;
 }
 
 /* 四角压一圈暗角，视线收向台面 */
@@ -76,6 +81,34 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 .corner--bottom {
   right: 24px;
   bottom: 20px;
+}
+
+.views {
+  top: 24px;
+  right: 24px;
+  display: flex;
+  gap: 6px;
+}
+
+.views button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid rgb(231 223 211 / 0.18);
+  border-radius: 8px;
+  background: rgb(24 28 33 / 0.8);
+  color: #ded7ca;
+  cursor: pointer;
+}
+
+.views button:hover,
+.views button:focus-visible {
+  border-color: #d5ae76;
+  color: #f4cf97;
+}
+
+.views button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .title {
@@ -178,10 +211,11 @@ const totalEnergy = computed(() => rooms.value.reduce((sum, room) => sum + room.
 }
 
 @media (max-width: 640px) {
-  .corner--top { top: 14px; left: 16px; gap: 10px; }
+  .corner--top { top: 14px; left: 16px; right: 126px; gap: 6px; flex-direction: column; align-items: flex-start; }
   .title { font-size: 17px; }
   .metrics { left: 16px; bottom: 14px; width: calc(100vw - 32px); }
   .hint { display: none; }
-  .corner--bottom { right: 16px; bottom: 14px; }
+  .corner--bottom { right: 16px; top: 14px; bottom: auto; }
+  .views { top: 108px; right: 16px; }
 }
 </style>

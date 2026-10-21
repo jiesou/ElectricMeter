@@ -5,6 +5,10 @@ import { createScene, type Scene } from "./scene";
 
 const canvas = ref<HTMLCanvasElement>();
 let scene: Scene | undefined;
+defineExpose({
+  resetView: () => scene?.resetView(),
+  focusRoom: () => scene?.focusRoom(),
+});
 
 // 数据断了整个画面降饱和，不让它假装还在动
 const stale = computed(() => status.value === "broken" || status.value === "unavailable");
