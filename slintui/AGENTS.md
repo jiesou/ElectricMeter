@@ -13,7 +13,19 @@
 - 本机未提交的改动用 `scripts/sync.sh` rsync 过去调试（已排除 `settings.json` 与模型素材）
 - `settings.json` 是板子本地配置（RKNN + 真摄像头），板子上已 `assume-unchanged` 不管它；若上游改过它，板子 `git pull` 会覆盖，先备份
 - 如果 ssh 连不上，可以本地调试，照样运行，本机走 ONNX + 视频文件，两边配置就是不一样的
-- 板子 venv 在 `~/services/ElectricMeter/.venv`，启动 `DISPLAY=:0 ../.venv/bin/python main.py`
+- 板子 venv 在 `~/services/ElectricMeter/slintui/.venv`，`uv sync` 后启动 `DISPLAY=:0 .venv/bin/python main.py`；桌面上的 `START Electric Meter.desktop` 走的就是这条
+
+## 模型
+
+- `models/` 里入库两份 yolov11n：`yolo11n.rknn`（板子 RKNN 量化版）与 `yolo11n.onnx`（本机 onnxruntime），都是标准 80 类，person 通道 0
+- 两份都是 rk fork 的 ultralytics 导出的改头版（9 个输出，DFL 在 `detector.py` 里算）；别自己重训或重导，换了就不再是这套
+- 板子 `settings.json` 用 `models/yolo11n.rknn`，本机用 `models/yolo11n.onnx`
+
+## 预编译轮子
+
+- `rust/frame_sender` 是 Python 扩展，仓库 `wheels/` 里放了 aarch64 / x86_64 两个预编译轮子，`uv sync` 按平台自动选，板子不用装 Rust
+- 改了 Rust 代码才需要重出轮子：对应平台跑 `uvx --from maturin==1.14.0 maturin build --release --out wheels`
+- `wheels/` 里还有板子的 `rknn-toolkit-lite2`；`onnxruntime` 只在非 aarch64 平台装
 
 ## 截图流程
 
