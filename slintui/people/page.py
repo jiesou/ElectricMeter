@@ -85,6 +85,7 @@ class PeoplePage:
         self.data.release = self.calibration.release
         self.data.remove_line = self.remove_line
         self.data.swap_camera = self.swap_camera
+        self.data.check_connection = self._push_connection
         window.AppData.swap_cameras = self.swap_camera
 
     def toggle_stream(self):
@@ -184,6 +185,9 @@ class PeoplePage:
         if force or rows != self.rows:
             self.rows = rows
             self.data.rooms = slint.ListModel([RoomRow(**row) for row in rows])
+
+    def _push_connection(self):
+        self.data.connected = self.reporter.connected
 
     def _push_calibration(self):
         self._push_rows()

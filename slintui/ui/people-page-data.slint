@@ -31,11 +31,13 @@ export global PeoplePageData {
     in-out property<float> by: 0;
     in-out property<int> selected: -1;
     in-out property<bool> calibrating: false;
+    in-out property<bool> connected: false;
     in-out property<bool> streaming: false;
     in-out property<bool> can-swap: false;
     in-out property<string> camera: "";
 
     callback request-camera-frame();
+    callback check-connection();
     callback press(float, float);
     callback drag(float, float);
     callback release();
