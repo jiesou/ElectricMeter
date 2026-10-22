@@ -44,6 +44,8 @@ export interface Appliance {
 
 /** 一间房里随数据变化的东西，scene.ts 的 applyRooms 只改这些 */
 export interface RoomView {
+  group: Group;
+  outline: LineSegments;
   wall: MeshStandardMaterial;
   floor: MeshStandardMaterial;
   furniture: MeshStandardMaterial[];
@@ -70,7 +72,6 @@ export interface Sandbox {
   width: number;
   depth: number;
   views: Map<string, RoomView>;
-  room?: { position: Vector3; facing: number };
 }
 
 /** 房间结构的指纹：房间、房名、家具种类不变就不用重建 */
@@ -167,9 +168,7 @@ export function buildSandbox(rooms: Room[], lights: number): Sandbox {
       object.receiveShadow = true;
     }
   });
-  const first = doors.find((door) => sorted.find((room) => room.id === door.id)?.online) ?? doors[0];
-  const room = first ? { position: new Vector3(first.facing * ROW_Z - cx, 0, -first.x - cz), facing: first.facing } : undefined;
-  return { group, width, depth, views, room };
+  return { group, width, depth, views };
 }
 
 /** 底面贴在 y 上的方块，结构件保留很淡的接缝 */
@@ -224,10 +223,12 @@ function buildRow(rooms: Room[], x0: number, facing: -1 | 1, m: Materials, doors
     const { group: unit, view } = buildRoom(room, m, budget);
     unit.position.set(cx, BASE, zRoom);
     unit.rotation.y = facing === -1 ? 0 : Math.PI;
+    unit.userData.roomId = room.id;
     row.add(unit);
     // 房名贴在门边空地上，统一朝南摆，从主机位看是正的
     const label = buildLabel(cx - facing * 0.95, BASE + 0.056, facing * (YARD / 2 + HALL + 0.28));
     label.mesh.rotation.z = -Math.PI / 2;
+    label.mesh.userData.roomId = room.id;
     view.setLabel = label.draw;
     label.draw(room.name);
     row.add(label.mesh);
@@ -323,6 +324,13 @@ function buildCurtain(material: Material, x: number, y: number, z: number) {
 /** 一间客房，本地坐标：门在 +z（朝天井），后墙在 -z，床靠后墙 */
 function buildRoom(room: Room, m: Materials, budget: { lights: number }) {
   const g = new Group();
+  const outlineGeometry = new BoxGeometry(RW, 0.04, RD);
+  const outline: LineSegments = new LineSegments(new EdgesGeometry(outlineGeometry), m.selection);
+  outlineGeometry.dispose();
+  outline.position.y = WALL + 0.07;
+  outline.renderOrder = 1;
+  outline.visible = false;
+  g.add(outline);
   // 每间房自己一套材质，离线变灰、功率发光才不会串到别的房
   const wall = m.paper.clone();
   const floor = m.floor.clone();
@@ -440,7 +448,7 @@ function buildRoom(room: Room, m: Materials, budget: { lights: number }) {
       g.add(box(0.12, 0.02, 0.12, glow(key, kind, GREEN), x, y + 0.38, z));
     }
   }
-  const view = { wall, floor, furniture: [wood, cushion, blanket, porcelain], appliances, lamp, speed: 0, t: 0 } as RoomView;
+  const view = { group: g, outline, wall, floor, furniture: [wood, cushion, blanket, porcelain], appliances, lamp, speed: 0, t: 0 } as RoomView;
   return { group: g, view };
 }
 

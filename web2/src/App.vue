@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
-import { useRoute } from "vue-router";
-import NavLinks from "./components/NavLinks.vue";
-import { connect, disconnect, toggleMock } from "./data";
+import { onMounted, onUnmounted } from "vue";
+import { RouterLink, RouterView, useRoute } from "vue-router";
+import { connect, disconnect, toggleMock } from "./data.ts";
 
-// 搜索和筛选放在这里，进出详情页不丢失
 const route = useRoute();
-const query = ref("");
-const filter = ref<"all" | "online" | "offline">("all");
 
-// 任何页面、任何焦点下按 Home 都切换 mock
-const onKey = (event: KeyboardEvent) => {
-  if (event.key !== "Home") return;
-  event.preventDefault();
-  toggleMock();
-};
+function onKey(e: KeyboardEvent) {
+  if (e.key === "Home") {
+    e.preventDefault();
+    toggleMock();
+  }
+}
 
 onMounted(() => {
   connect();
@@ -29,71 +25,179 @@ onUnmounted(() => {
 
 <template>
   <RouterView v-if="route.meta.bare" />
-  <div v-else class="layout">
-    <aside class="side">
-      <p class="brand">民宿用电管理</p>
-      <NavLinks variant="side" />
-    </aside>
+  <div v-else class="shell">
+    <nav class="nav">
+      <RouterLink to="/rooms" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 10.8 12 3.4l9 7.4" />
+          <path d="M5.7 9.6v10.9h12.6V9.6" />
+          <path d="M9.9 20.5v-5.3h4.2v5.3" />
+        </svg>
+        <span>客房管理</span>
+      </RouterLink>
+      <RouterLink to="/stats" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 20h18" />
+          <path d="M6 20v-7" />
+          <path d="M11 20V6" />
+          <path d="M16 20v-4" />
+          <path d="M21 20V9" />
+        </svg>
+        <span>统计数据</span>
+      </RouterLink>
+      <RouterLink to="/camera" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="7.4" width="11.2" height="9.2" rx="2" />
+          <path d="M14.2 11.6 21 8.4v7.2l-6.8-3.2z" />
+        </svg>
+        <span>视频监控</span>
+      </RouterLink>
+      <RouterLink to="/agent" class="item" active-class="on">
+        <svg
+          class="icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3.4 13.9 9l5.6 1.9-5.6 1.9L12 18.4 10.1 12.8 4.5 10.9 10.1 9z" />
+          <path d="M18.6 16.4l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
+        </svg>
+        <span>AI智能体</span>
+      </RouterLink>
+      <RouterLink to="/twin" class="item item--twin" active-class="on">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5" />
+        </svg>
+        <span>孪生大屏</span>
+      </RouterLink>
+    </nav>
 
     <main class="main">
-      <RouterView
-        :query="query"
-        :filter="filter"
-        @update:query="query = $event"
-        @update:filter="filter = $event"
-      />
+      <div class="page"><RouterView /></div>
     </main>
-
-    <NavLinks class="bottom" variant="bottom" />
   </div>
 </template>
 
 <style scoped>
-.layout {
-  display: flex;
+.shell {
   min-height: 100vh;
 }
 
 .main {
-  flex: 1;
-  min-width: 0;
+  padding: 20px 16px calc(84px + env(safe-area-inset-bottom));
 }
 
-.side {
-  display: none;
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
-.bottom {
+.nav {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 10;
+  display: flex;
+  height: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--card);
   border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.item--twin { display: none; }
+
+.item.on {
+  color: var(--primary);
+  background: var(--primary-soft);
 }
 
 @media (min-width: 1024px) {
-  .side {
-    display: block;
+  .shell {
+    display: flex;
+  }
+
+  .nav {
     position: sticky;
     top: 0;
-    width: 200px;
-    flex: none;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    flex: 0 0 200px;
+    flex-direction: column;
+    align-items: stretch;
     height: 100vh;
     padding: 20px 12px;
-    background: var(--card);
+    gap: 4px;
+    border-top: none;
     border-right: 1px solid var(--border);
   }
 
-  .bottom {
-    display: none;
+  .item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    height: 44px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 15px;
   }
 
-  .brand {
-    font-size: 16px;
-    font-weight: 600;
-    padding: 0 12px 20px;
+  .item--twin { display: flex; }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 28px 32px 40px;
   }
 }
 </style>

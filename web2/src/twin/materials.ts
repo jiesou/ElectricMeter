@@ -123,6 +123,7 @@ export function createMaterials() {
     water: new MeshStandardMaterial({ color: 0x284d4c, bumpMap: water, bumpScale: 0.035, roughness: 0.24, metalness: 0.35, transparent: true, opacity: 0.9 }),
     dot: new MeshBasicMaterial({ color: 0xffc36a }),
     line: new LineBasicMaterial({ color: 0x554d40, transparent: true, opacity: 0.18 }),
+    selection: new LineBasicMaterial({ color: 0xd68b26, depthTest: false, toneMapped: false }),
   };
 }
 

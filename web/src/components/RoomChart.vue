@@ -31,7 +31,7 @@ const MUTED = cssVar("--muted");
 const TEXT = cssVar("--text");
 const CARD = cssVar("--card");
 
-const props = defineProps<{ room: Room }>();
+const props = defineProps<{ room: Room; compact?: boolean }>();
 
 onMounted(() => {
   if (!mock.value) void loadHistory(props.room);
@@ -111,7 +111,7 @@ const options = computed<ChartOptions<"line">>(() => ({
         color: MUTED,
         font: { size: 11 },
         maxRotation: 0,
-        maxTicksLimit: 6,
+        maxTicksLimit: props.compact ? 3 : 6,
         callback(value) {
           return clock(Number(this.getLabelForValue(Number(value))));
         },

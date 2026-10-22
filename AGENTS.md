@@ -73,12 +73,12 @@
   - `src/views/*` —— 客房管理 / 统计数据 / 视频监控 / AI智能体（`AgentView.vue`，对话界面是 assistant-ui 的）
   - `src/components/assistant-ui/*` —— assistant-ui 注册表原样副本，不动
   - 设计意图见 `.agents/notes/decisions/网页前端设计.md`、`.agents/notes/decisions/智能体界面.md`
-- **web2/**（第二版前端，Vue 3 + TS + Vite + Three.js；与 `web/` 并存、各跑各的互不影响，两端连同一个后端）
-  - `App.vue` / `data.ts` / `api.ts` / `mock.ts` —— 与 `web/` 同一套数据流，照抄后各改各的；叫法与 `web/` 保持一致（客房管理）
-  - `pages/RoomsPage.vue` / `RoomDetailPage.vue` / `CameraPage.vue` —— 客房管理（已换肤）、客房详情、视频监控；`TwinPage.vue` —— 孪生大屏；`IntroPage.vue` 未做
+- **web2/**（第二版前端，Vue 3 + TS + Vite + Three.js；与 `web/` 并存、独立运行，两端连同一个后端）
+  - `App.vue` / `router.ts` / `data.ts` —— 管理端直接复用 `web/src` 的页面、组件、样式和数据流；客房管理 / 统计数据 / 视频监控 / AI智能体与 main 一致，沙盘共用同一条客房 SSE
+  - `pages/RoomDetailPage.vue` —— 复用管理端房卡的客房详情；`TwinPage.vue` —— 孪生大屏，可点选客房高亮、聚焦并查看实时读数；`components/RoomReadings.vue` —— 沙盘只读面板，复用管理端最近 10 分钟功率曲线；`IntroPage.vue` 未做
   - `twin/` —— `scene.ts` 建场景与全景 / 客房近景取景，`sandbox.ts` 拼江南合院剖切沙盘，`materials.ts` 管小件纹理，`surfaces.ts` 加载本地材质贴图；`TwinCanvas.vue` 挂载，客房按 rooms 生成，灯、家具与线路随真实读数亮灭流动
   - `src/assets/textures/` —— 灰泥白墙、木地板、庭院石板、草地四张生成贴图及完整提示词
-  - Hash 路由 `/rooms`、`/rooms/:device_id`、`/camera`、`/twin`（`meta.bare` 的无导航全屏页）；`bun run --cwd web2 dev` / `build`，开发服务同样把 `/api` 代理到 `127.0.0.1:8080`
+  - Hash 路由 `/rooms`、`/rooms/:device_id`、`/stats`、`/camera`、`/agent`、`/twin`（`meta.bare` 的无导航全屏页）；`bun run --cwd web2 dev` / `build`，开发服务同样把 `/api` 代理到 `127.0.0.1:8080`
   - 设计意图见 `.agents/notes/decisions/网页前端第二版设计.md`
 
 ## 已规划

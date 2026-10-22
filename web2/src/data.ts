@@ -1,52 +1,11 @@
-import { ref } from "vue";
-import { fetchRooms, openRoomStream } from "./api";
-import { startMockRooms } from "./mock";
-import type { Room, RoomStatus } from "./types";
+import { computed } from "vue";
+import { rooms, status as connectionStatus } from "../../web/src/data.ts";
+import type { RoomStatus } from "./types";
 
-export const rooms = ref<Room[]>([]);
-export const status = ref<RoomStatus>("loading");
-export const mock = ref(false);
-
-let stop: (() => void) | undefined;
-let gotSnapshot = false;
-
-const setRooms = (next: Room[]) => {
-  rooms.value = next;
-  gotSnapshot = true;
-};
-
-/** 连上当前来源：mock 或真实接口，切换前先断开上一来源 */
-export async function connect() {
-  stop?.();
-  rooms.value = [];
-  gotSnapshot = false;
-
-  if (mock.value) {
-    status.value = "live";
-    stop = startMockRooms(setRooms);
-    return;
-  }
-
-  // 先取一次完整快照，再挂 SSE，避免旧结果覆盖新快照
-  status.value = "loading";
-  try {
-    setRooms(await fetchRooms());
-    status.value = "connecting";
-  } catch {
-    status.value = "unavailable";
-  }
-
-  stop = openRoomStream(setRooms, (state) => {
-    if (state === "open") status.value = "live";
-    else status.value = gotSnapshot ? "broken" : "unavailable";
-  });
-}
-
-export function toggleMock() {
-  mock.value = !mock.value;
-  connect();
-}
-
-export function disconnect() {
-  stop?.();
-}
+// 管理页与沙盘共用 main 的数据流，全站只建立一条客房 SSE。
+export { rooms, mock, connect, disconnect, toggleMock } from "../../web/src/data.ts";
+export const status = computed<RoomStatus>(() => {
+  if (connectionStatus.value === "已连接") return "live";
+  if (connectionStatus.value === "连接中") return rooms.value.length ? "connecting" : "loading";
+  return rooms.value.length ? "broken" : "unavailable";
+});

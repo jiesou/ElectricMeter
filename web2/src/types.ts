@@ -1,14 +1,5 @@
-import type { Entity } from "@em/shared";
-
-/** 客房快照，对应 GET /api/rooms；一个设备就是一间客房 */
-export interface Room {
-  id: string;
-  name: string;
-  online: boolean;
-  power: number;
-  energy: number;
-  entities: Entity[];
-}
+import type { Room } from "../../web/src/api.ts";
+export type { Room } from "../../web/src/api.ts";
 
 export const metersOf = (room: Room) => room.entities.filter((e) => e.type === "meter");
 export const switchesOf = (room: Room) => room.entities.filter((e) => e.type === "switch");
