@@ -1,5 +1,6 @@
 import { websocket } from "@hono/bun";
 import { app } from "./app.ts";
+import { startAutoOffOn } from "./core/AutoOffOn.ts";
 import { startHeartbeat } from "./core/hub.ts";
 import { startUdpCamera } from "./core/udp_camera.ts";
 import { now } from "./core/util.ts";
@@ -11,6 +12,7 @@ const udpPort = Number(process.env.UDP_PORT ?? 8080);
 Bun.serve({ port, fetch: app.fetch, websocket });
 startUdpCamera(udpPort);
 startHeartbeat();
+startAutoOffOn();
 setInterval(seedMissing, 5000); // 有房间接入就先看它要不要铺演示历史
 
 console.log(`http     http://localhost:${port}`);

@@ -55,6 +55,7 @@
   - `core/udp_camera.ts`
   - `routes/cv.ts`
   - action 下通断令：`routes/entities.ts` 下发 `pub_action_switch`，`core/hub.ts` 收 `ack_action_switch` 落 state
+  - `core/AutoOffOn.ts` —— 人进全房上电、人出 5s 断电
   - `routes/chat.ts` —— `/api/chat`，智能体对话（只有 DeepSeek 官方一个模型，key 走环境变量）
   - `agent/index.ts` —— 系统提示词 + 工具 `em`（跑本项目 CLI）
 - **cli/**
@@ -78,7 +79,7 @@
 
 > 实现后挪到上方，然后从这里删除，不留
 
-- **业务逻辑** 一个业务一份代码 `core/*.ts` —— 人走断电 / 人来上电 / 空房大功率告警 / 长时间零用电告警
+- **业务逻辑** 一个业务一份代码 `core/*.ts` —— 空房大功率告警 / 长时间零用电告警
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）
 - **数字孪生** —— 房间 3D 数字孪生大屏（Three.js），灯、空调、插座随真实状态动作
