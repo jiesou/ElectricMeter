@@ -280,40 +280,82 @@ const roomReply = (room: Room, stats: Stats | null) => {
   ].join("\n");
 };
 
-/** mock 模式下智能体的回答：按问法挑一份，全部来自上面这两间房 */
-export function mockReply(
-  prompt: string,
-  rooms: Room[],
-  stats: Stats | null,
-): string {
+/** mock 模式下智能体的一次回答：调工具的参数、工具吐的 JSON、最后说的话 */
+function mockCall(prompt: string, rooms: Room[], stats: Stats | null) {
+  const asRooms = (reply: string) => ({
+    args: ["rooms"],
+    output: JSON.stringify(rooms, null, 2),
+    reply,
+  });
+
   const room = rooms.find((r) => prompt.includes(r.id.replace("esp-", "")));
-  if (room) return roomReply(room, stats);
-  if (/在线|状态|客房/.test(prompt)) return onlineReply(rooms);
-  if (/费电|电量|用电/.test(prompt) || !rooms.length) return usageReply(stats);
-  return `${onlineReply(rooms)}\n\n${usageReply(stats)}`;
+  if (room)
+    return {
+      args: ["entities", "-d", room.id],
+      output: JSON.stringify(room.entities, null, 2),
+      reply: roomReply(room, stats),
+    };
+  if (/在线|状态|客房/.test(prompt)) return asRooms(onlineReply(rooms));
+  if (/费电|电量|用电/.test(prompt) || !rooms.length)
+    return asRooms(usageReply(stats));
+  return asRooms(`${onlineReply(rooms)}\n\n${usageReply(stats)}`);
 }
 
-/** 一小段一小段往外吐，看起来像在流式生成 */
-function stream(text: string): ReadableStream<UIMessageChunk> {
+const TOOL = "electricmeter";
+const wait = (min: number, max: number) => min + Math.random() * (max - min);
+const pieces = (text: string) => text.match(/[\s\S]{1,3}/g) ?? [];
+
+/** 一块流数据加它前面该等多久，让工具调用和打字都看起来像真的 */
+type Step = [number, UIMessageChunk];
+
+function toolSteps(args: string[], output: string): Step[] {
+  const toolCallId = crypto.randomUUID();
+  const input = { args };
+  const steps: Step[] = [
+    [wait(600, 1200), { type: "start-step" }],
+    [0, { type: "tool-input-start", toolCallId, toolName: TOOL }],
+  ];
+  for (const delta of pieces(JSON.stringify(input)))
+    steps.push([
+      wait(12, 28),
+      { type: "tool-input-delta", toolCallId, inputTextDelta: delta },
+    ]);
+  steps.push([
+    0,
+    { type: "tool-input-available", toolCallId, toolName: TOOL, input },
+  ]);
+  steps.push([
+    wait(800, 1500),
+    { type: "tool-output-available", toolCallId, output },
+  ]);
+  steps.push([0, { type: "finish-step" }]);
+  return steps;
+}
+
+function textSteps(text: string): Step[] {
   const id = crypto.randomUUID();
-  const pieces = text.match(/[\s\S]{1,4}/g) ?? [];
+  const steps: Step[] = [
+    [wait(200, 500), { type: "start-step" }],
+    [0, { type: "text-start", id }],
+  ];
+  for (const delta of pieces(text))
+    steps.push([wait(25, 45), { type: "text-delta", id, delta }]);
+  steps.push(
+    [0, { type: "text-end", id }],
+    [0, { type: "finish-step" }],
+    [0, { type: "finish", finishReason: "stop" }],
+  );
+  return steps;
+}
+
+function stream(steps: Step[]): ReadableStream<UIMessageChunk> {
   let i = 0;
   return new ReadableStream({
-    start(c) {
-      c.enqueue({ type: "start" });
-      c.enqueue({ type: "start-step" });
-      c.enqueue({ type: "text-start", id });
-    },
     async pull(c) {
-      if (i < pieces.length) {
-        c.enqueue({ type: "text-delta", id, delta: pieces[i++]! });
-        await new Promise((done) => setTimeout(done, 18));
-        return;
-      }
-      c.enqueue({ type: "text-end", id });
-      c.enqueue({ type: "finish-step" });
-      c.enqueue({ type: "finish", finishReason: "stop" });
-      c.close();
+      const step = steps[i++];
+      if (!step) return c.close();
+      await new Promise((done) => setTimeout(done, step[0]));
+      c.enqueue(step[1]);
     },
   });
 }
@@ -339,6 +381,15 @@ export class MockChatTransport extends AssistantChatTransport<UIMessage> {
     options: Parameters<ChatTransport<UIMessage>["sendMessages"]>[0],
   ) {
     if (!this.mock.value) return super.sendMessages(options);
-    return stream(mockReply(askOf(options.messages), this.rooms.value, this.stats.value));
+    const { args, output, reply } = mockCall(
+      askOf(options.messages),
+      this.rooms.value,
+      this.stats.value,
+    );
+    return stream([
+      [0, { type: "start" }],
+      ...toolSteps(args, output),
+      ...textSteps(reply),
+    ]);
   }
 }
