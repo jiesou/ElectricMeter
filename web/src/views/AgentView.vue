@@ -4,6 +4,8 @@ import { Suggestions } from "@assistant-ui/core/store";
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import ThreadList from "../components/assistant-ui/thread-list.vue";
 import Thread from "../components/assistant-ui/thread.vue";
+import { mock, rooms, stats } from "../data.ts";
+import { MockChatTransport } from "../mock.ts";
 
 // 组合方式照抄 examples/with-nuxt/app/components/Assistant.client.vue，只是换成 Vite 的页面
 const suggestions = Suggestions([
@@ -24,7 +26,13 @@ const suggestions = Suggestions([
   },
 ]);
 
-const config = AuiConfig({ threads: AISDKThreads(), suggestions });
+// 每条对话一个传输：按不按 Home 决定回答来自后端还是 mock
+const config = AuiConfig({
+  threads: AISDKThreads({
+    transport: () => new MockChatTransport(mock, rooms, stats),
+  }),
+  suggestions,
+});
 </script>
 
 <template>
