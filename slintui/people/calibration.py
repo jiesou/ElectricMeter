@@ -11,6 +11,7 @@ from vision.counter import LineCounter
 
 HANDLE_HIT = 0.04  # 端点命中半径（归一化）
 BODY_HIT = 0.02    # 线身命中带（归一化）
+LABEL_OFFSET = 0.07  # 房号标签离线的距离（归一化）
 
 A, B, BODY = 0, 1, 2
 
@@ -78,12 +79,16 @@ class Calibration:
         self.selected = -1
 
     def labels(self):
-        """每条线的房号标签落点：线中点往法向偏一点，免得压住线"""
+        """每条线的房号标签落点：线中点往屋内那侧偏出去。
+
+        法向 (-dy, dx) 指的就是 counter 里算作「内」的那一侧（叉积为正），
+        所以标签贴在哪侧，哪侧就是屋内；贴反了把把手拖过另一端即可。
+        """
         out = []
         for counter in self.counters:
             along = counter.p2 - counter.p1
             normal = np.array([-along[1], along[0]]) / np.linalg.norm(along)
-            spot = (counter.p1 + counter.p2) / 2 + normal * 0.03
+            spot = (counter.p1 + counter.p2) / 2 + normal * LABEL_OFFSET
             out.append((counter.device_id, float(spot[0]), float(spot[1]), counter.index == self.selected))
         return out
 

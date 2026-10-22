@@ -25,7 +25,7 @@
 - 接收端 `~/Documents/dev/Projects/ElectricDriveSystem/server/UdpCameraServer.ts:8`，`node:dgram` 的 `createSocket("udp4")`（Bun 直接支持，不用换 API）。
 - 包头 8 字节小端 `frame_index u32 + chunk_index u16 + chunk_total u16`（`UdpCameraServer.ts:48-59`），与发送端 `'<IHH'` 对称。
 - 重组按 `frameIndex → Map<chunkIndex, bytes>`，齐了按序拼，缺一片丢整帧（`UdpCameraServer.ts:75-112`）；清理只看 frameIndex 落后 5 帧，无超时、无重传（`:143-159`）。
-- 帧不落盘：内存里留一份最新帧，`routes/cv.ts` 的 `GET /api/cv/stream` 转 MJPEG 给浏览器 `<img>`（老项目是 `server/routes/cv.ts:55,74`，按 cvClientIp 分路；我们只有一路，去掉那个参数）。
+- 帧不落盘：内存里留一份最新帧，`routes/cv.ts` 的 `GET /api/cv/frame` 出一张 JPEG 给浏览器 `<img>`（老项目是 MJPEG 长连接 `server/routes/cv.ts:55,74`、按 cvClientIp 分路；我们只有一路，改成一次一帧，手机 Safari 上不会攒延迟）。
 - 老项目里**没有**大屏直接收 UDP 的实现，板端 slintui 只发不收。
 
 板端老源码在 `~/Documents/dev/Projects/Playground/ElectricDriveCVClient/OPi5-RK3588-ElectricDrive/`：同目录有 `pyqt/` 旧 Qt 版、Buildroot 构建仓与 `sdcard.img`（内含开机自启 `S99electricdrive`）。
@@ -44,6 +44,6 @@
 ## 现状
 
 - **发**已由 Rust 接手：`slintui/rust/frame_sender/`（PyO3 扩展，`uv sync` 时由 maturin 构建），Python 侧 10fps 调 `frame_sender.send(frame, host, port)`。
-- **收**在服务器里，TypeScript：`server/core/udp_camera.ts` 起 UDP 收图，`server/routes/cv.ts` 出 `/api/cv/stream`（MJPEG）。没有独立的收图进程，也没有额外端口。
+- **收**在服务器里，TypeScript：`server/core/udp_camera.ts` 起 UDP 收图，`server/routes/cv.ts` 出 `/api/cv/frame`（单帧 JPEG）。没有独立的收图进程，也没有额外端口。
 - 老 Python 的 `slintui/udp_frame_uploader.py` 已被取代，成了死代码。
 

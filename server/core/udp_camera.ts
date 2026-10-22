@@ -5,11 +5,15 @@ import { createSocket } from "node:dgram";
  * 逐行照老项目 server/UdpCameraServer.ts 的逻辑，只是把「更新所有 cvClient」换成一份最新帧。
  */
 
-let latestFrame: Uint8Array | null = null;
+let latestFrame: Uint8Array<ArrayBuffer> | null = null;
+let seq = 0; // 每来一帧加一，网页靠它判断是不是新帧
 const frameBuffer = new Map<number, Map<number, Uint8Array>>();
 
-export function getLatestFrame(): Uint8Array | null {
-  return latestFrame;
+export function getLatestFrame(): {
+  seq: number;
+  data: Uint8Array<ArrayBuffer>;
+} | null {
+  return latestFrame && { seq, data: latestFrame };
 }
 
 export function startUdpCamera(port = 8080): void {
@@ -59,6 +63,7 @@ function processPacket(data: Uint8Array): void {
     offset += chunk.length;
   }
   latestFrame = frame;
+  seq++;
 
   frameBuffer.delete(frameIndex);
 }

@@ -72,7 +72,7 @@ class PeoplePage:
         self.data.camera = self.device
         self.data.streaming = self.streaming
         self.data.can_swap = len(camera_service.devices()) > 1
-        self._push_rows(force=True)
+        self._push_calibration()  # 房号标签运行态也画，开局就得有
 
         self.viewport.bind(window, self._push_rows)
         self.data.toggle_stream = self.toggle_stream
@@ -104,8 +104,9 @@ class PeoplePage:
 
     def close_calibration(self):
         self.calibration.save()
+        self.calibration.selected = -1  # 退出后房号标签还要画，别留一条高亮的
         self.data.calibrating = False
-        self._push_rows()
+        self._push_calibration()
 
     def room_clicked(self, device_id):
         counter = self.calibration.counter(device_id)
@@ -157,7 +158,8 @@ class PeoplePage:
         if not url.startswith("udp://"):
             return None
         host, _, port = url[6:].partition(":")
-        return lambda frame: frame_sender.send(frame, host, int(port))
+        # 720p 原样发大约 5Mbps，手机 WiFi 跟不上就只会看到越来越旧的画面；缩到 540p
+        return lambda frame: frame_sender.send(cv2.resize(frame, (960, 540)), host, int(port))
 
     def _rows(self):
         rooms = self.power_stream.snapshot()
