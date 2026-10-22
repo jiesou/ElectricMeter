@@ -84,3 +84,10 @@
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）
 - **数字孪生** —— 房间 3D 数字孪生大屏（Three.js），灯、空调、插座随真实状态动作
 - **部署网络** —— 每房间一个 AP + 机房服务器机柜，服务跑在 **Ubuntu Server + Docker**
+
+## 分支
+
+- `main`：正常开发
+- `compat`：现场版本，**永远等于 main 加一个 `chore: clean`**（删掉 `server/routes/chat.ts`，现场自己写）
+
+两个分支都可以提交，收口一律走 `git sync`（即 `scripts/git-sync.sh`）：把 compat 上除 `chore: clean` 外的提交搬到 main，再把 compat 重建回 main + `chore: clean`，最后强推。`SKIP_PUSH=1 git sync` 只看不推。
