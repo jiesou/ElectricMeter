@@ -56,7 +56,10 @@ test("应用层心跳收到 ack_alive", async () => {
   const ws = fakeWs((m) => sent.push(m));
   await hub.connect("esp-107", ws, "10.0.0.1");
   await hub.handleMessage("esp-107", JSON.stringify({ type: "pub_alive" }));
-  expect(sent.map((m) => JSON.parse(m).type)).toEqual(["ack_alive"]);
+  expect(sent.map((m) => JSON.parse(m).type)).toEqual([
+    "pub_name",
+    "ack_alive",
+  ]);
 });
 
 test("失联判定：10s 没消息就当它掉线，连接也关掉", async () => {
@@ -235,6 +238,7 @@ test("人数是替房间报的：报一次就下发到那间房自己的设备",
     }),
   );
   expect(sent.map((m) => JSON.parse(m))).toMatchObject([
+    { type: "pub_name", name: "esp-301" },
     { type: "pub_entities", entities: [{ id: "people", netCount: 2 }] },
   ]);
 });
@@ -256,6 +260,7 @@ test("刚连上就把当前人数补给它，不用等下一个人跨线", async
   const sent: string[] = [];
   await hub.connect("esp-302", fakeWs((m) => sent.push(m)), "10.0.0.1");
   expect(sent.map((m) => JSON.parse(m))).toMatchObject([
+    { type: "pub_name", name: "esp-302" },
     { type: "pub_entities", entities: [{ id: "people", netCount: 5 }] },
   ]);
 });

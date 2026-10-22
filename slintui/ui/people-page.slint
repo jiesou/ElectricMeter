@@ -9,30 +9,60 @@ component RoomLine inherits Rectangle {
     in property<RoomRow> info;
     callback clicked();
 
-    height: Sizing.small * 110%;
+    height: Sizing.small * 130%;
     border-radius: Sizing.small * 25%;
-    background: info.selected ? Palette.accent-background.with-alpha(20%) : transparent;
+    background: info.selected ? Palette.accent-background.with-alpha(20%) : Palette.foreground.with-alpha(6%);
 
     HorizontalLayout {
-        padding-left: Sizing.small * 15%;
-        padding-right: Sizing.small * 15%;
+        padding-left: Sizing.small * 30%;
+        padding-right: Sizing.small * 30%;
         spacing: Sizing.small * 15%;
 
-        Text {
-            vertical-alignment: center;
-            text: info.name;
-            color: Palette.foreground;
-            font-weight: 700;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: Sizing.small * 6%;
+
+            Text {
+                text: info.name;
+                color: Palette.foreground;
+                font-weight: 700;
+                font-size: Sizing.small * 38%;
+            }
+
+            Text {
+                overflow: elide; // 数字再长也省略，不能把面板撑出横向滚动
+                text: info.lined
+                      ? "进 " + info.in-count + " · 出 " + info.out-count
+                      : (PeoplePageData.calibrating ? "点一下加线" : "未标定");
+                color: info.lined ? Palette.foreground.with-alpha(55%) : Palette.foreground.with-alpha(40%);
+                font-size: Sizing.small * 28%;
+            }
         }
 
-        Text {
-            horizontal-stretch: 1;
-            vertical-alignment: center;
-            overflow: elide; // 数字再长也省略，不能把面板撑出横向滚动
-            text: info.lined
-                  ? "进 " + info.in-count + "  出 " + info.out-count + "  净 " + info.net
-                  : (PeoplePageData.calibrating ? "未标定 · 点一下加线" : "未标定");
-            color: info.lined ? Palette.foreground.with-alpha(80%) : Palette.foreground.with-alpha(45%);
+        // 人数：一眼要看的就是它，进出只是注脚
+        HorizontalLayout {
+            alignment: end;
+            spacing: Sizing.small * 6%;
+
+            if info.lined : Text {
+                vertical-alignment: center;
+                text: info.net;
+                color: Palette.accent-background;
+                font-weight: 700;
+                font-size: Sizing.small * 70%;
+            }
+
+            if info.lined : VerticalLayout {
+                alignment: end;
+                padding-bottom: Sizing.small * 12%;
+
+                Text {
+                    text: "人";
+                    color: Palette.foreground.with-alpha(55%);
+                    font-size: Sizing.small * 30%;
+                }
+            }
         }
     }
 
@@ -169,60 +199,86 @@ export component PeoplePage {
             border-width: 1px;
 
             VerticalLayout {
-                padding: Sizing.small * 30%;
-                spacing: Sizing.small * 20%;
+                padding: 0px;
+                spacing: 0px;
 
-                ScrollView {
-                    mouse-drag-pan-enabled: true;
-                    vertical-stretch: 1;
+                // 标题带与左列 PageHeader 齐平：窗口按钮落在这一带，不压房间行
+                VerticalLayout {
+                    height: Sizing.small * 125%;
+                    padding-left: Sizing.small * 30%;
+                    alignment: center;
 
-                    VerticalLayout {
-                        spacing: Sizing.small * 20%;
-
-                        for room in PeoplePageData.rooms : RoomLine {
-                            info: room;
-                            clicked => { PeoplePageData.room-clicked(room.id); }
-                        }
+                    Text {
+                        text: "房间人数";
+                        color: Palette.foreground.with-alpha(60%);
+                        font-weight: 700;
+                        font-size: Sizing.small * 34%;
                     }
                 }
 
-                if PeoplePageData.calibrating : ControlRow {
-                    label: "删除这条线";
-                    enabled: PeoplePageData.selected >= 0;
-                    clicked => { PeoplePageData.remove-line(); }
-                }
+                VerticalLayout {
+                    vertical-stretch: 1;
+                    padding: Sizing.small * 20%;
+                    spacing: Sizing.small * 20%;
 
-                if PeoplePageData.calibrating : ControlRow {
-                    label: "完成";
-                    value: "保存并退出";
-                    highlighted: true;
-                    clicked => { PeoplePageData.close-calibration(); }
-                }
+                    ScrollView {
+                        mouse-drag-pan-enabled: true;
+                        vertical-stretch: 1;
 
-                if !PeoplePageData.calibrating : ControlRow {
-                    label: "标定判定线";
-                    value: "›";
-                    clicked => { PeoplePageData.open-calibration(); }
-                }
+                        VerticalLayout {
+                            spacing: Sizing.small * 15%;
 
-                if !PeoplePageData.calibrating : ControlRow {
-                    label: "UDP 图传";
-                    value: PeoplePageData.streaming ? "开" : "关";
-                    highlighted: PeoplePageData.streaming;
-                    clicked => { PeoplePageData.toggle-stream(); }
-                }
+                            if PeoplePageData.rooms.length == 0 : Text {
+                                text: "没有房间数据";
+                                color: Palette.foreground.with-alpha(45%);
+                                font-size: Sizing.small * 30%;
+                            }
 
-                if !PeoplePageData.calibrating : ControlRow {
-                    label: "换摄像头";
-                    value: PeoplePageData.can-swap ? "⇄" : "只有一路";
-                    enabled: PeoplePageData.can-swap;
-                    clicked => { PeoplePageData.swap-camera(); }
-                }
+                            for room in PeoplePageData.rooms : RoomLine {
+                                info: room;
+                                clicked => { PeoplePageData.room-clicked(room.id); }
+                            }
+                        }
+                    }
 
-                if !PeoplePageData.calibrating : ControlRow {
-                    label: "清零";
-                    value: "进 / 出";
-                    clicked => { PeoplePageData.reset-counts(); }
+                    if PeoplePageData.calibrating : ControlRow {
+                        label: "删除这条线";
+                        enabled: PeoplePageData.selected >= 0;
+                        clicked => { PeoplePageData.remove-line(); }
+                    }
+
+                    if PeoplePageData.calibrating : ControlRow {
+                        label: "完成";
+                        value: "保存并退出";
+                        highlighted: true;
+                        clicked => { PeoplePageData.close-calibration(); }
+                    }
+
+                    if !PeoplePageData.calibrating : ControlRow {
+                        label: "标定判定线";
+                        value: "›";
+                        clicked => { PeoplePageData.open-calibration(); }
+                    }
+
+                    if !PeoplePageData.calibrating : ControlRow {
+                        label: "UDP 图传";
+                        value: PeoplePageData.streaming ? "开" : "关";
+                        highlighted: PeoplePageData.streaming;
+                        clicked => { PeoplePageData.toggle-stream(); }
+                    }
+
+                    if !PeoplePageData.calibrating : ControlRow {
+                        label: "换摄像头";
+                        value: PeoplePageData.can-swap ? "⇄" : "只有一路";
+                        enabled: PeoplePageData.can-swap;
+                        clicked => { PeoplePageData.swap-camera(); }
+                    }
+
+                    if !PeoplePageData.calibrating : ControlRow {
+                        label: "清零";
+                        value: "进 / 出";
+                        clicked => { PeoplePageData.reset-counts(); }
+                    }
                 }
             }
         }

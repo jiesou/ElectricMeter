@@ -135,6 +135,23 @@ test("改房名同时落到快照和库里", async () => {
   ).toMatchObject({ name: "301 房" });
 });
 
+test("改房名顺手把新名字推给那台设备", async () => {
+  const sent: any[] = [];
+  const ws = {
+    send: (raw: string) => sent.push(JSON.parse(raw)),
+    close: () => {},
+  } as never;
+  await hub.connect("esp-308", ws, "10.0.0.9");
+
+  await app.request("/api/rooms/esp-308", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "302" }),
+  });
+
+  expect(sent.at(-1)).toMatchObject({ type: "pub_name", name: "302" });
+});
+
 test("设备重连不会把改过的房名冲掉", async () => {
   await device("esp-305", [
     { id: "light", name: "灯", type: "switch", state: true },

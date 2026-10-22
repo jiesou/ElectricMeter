@@ -74,18 +74,21 @@ async function del() {
   <article class="card room" :class="{ offline: !room.online }">
     <div class="head">
       <span class="dot" :class="{ off: !room.online }" />
-      <input
-        v-if="editing"
-        ref="input"
-        v-model="draft"
-        class="name-edit"
-        @keydown.enter="submit"
-        @keydown.esc="editing = false"
-        @blur="editing = false"
-      />
-      <h2 v-else class="name" title="点一下改房名" @click="startEdit">
-        {{ room.name }}
-      </h2>
+      <div class="title">
+        <input
+          v-if="editing"
+          ref="input"
+          v-model="draft"
+          class="name-edit"
+          @keydown.enter="submit"
+          @keydown.esc="editing = false"
+          @blur="editing = false"
+        />
+        <h2 v-else class="name" title="点一下改房名" @click="startEdit">
+          {{ room.name }}
+        </h2>
+        <span class="id">{{ room.id }}</span>
+      </div>
       <span class="state">{{ room.online ? "在线" : "离线" }}</span>
       <button class="del" aria-label="删除客房" @click="del">
         <svg
@@ -177,6 +180,19 @@ async function del() {
 .dot.off {
   background: var(--muted);
   opacity: 0.5;
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.id {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .name {

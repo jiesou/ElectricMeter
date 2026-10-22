@@ -11,27 +11,6 @@ import { Sizing } from "sizing.slint";
 
 export { AppData, PeoplePageData, PowerPageData, SettingsPageData }
 
-component WindowButton inherits Rectangle {
-    in property<string> label: "";
-    callback clicked();
-
-    width: Sizing.large;
-    height: Sizing.small;
-    border-radius: Sizing.small * 30%;
-    background: touch.has-hover ? Palette.foreground.with-alpha(15%) : Palette.foreground.with-alpha(7%);
-
-    Text {
-        text: root.label;
-        color: Palette.foreground;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-
-    touch := TouchArea {
-        clicked => { root.clicked(); }
-    }
-}
-
 export component AppWindow inherits Window {
     title: "民宿用电管理";
     // height: Sizing.screen-height;
@@ -85,31 +64,6 @@ export component AppWindow inherits Window {
                 current-index <=> AppData.current-tab;
                 tabs: ["客房管理", "人数监控", "设置"];
             }
-        }
-    }
-
-    HorizontalLayout {
-        x: 0;
-        y: Sizing.small * 25%;
-        width: 100%;
-        height: Sizing.small;
-        alignment: end;
-        padding-right: Sizing.small * 40%;
-        spacing: Sizing.small * 25%;
-
-        WindowButton {
-            label: "⇄";
-            clicked => { AppData.swap-cameras(); }
-        }
-        WindowButton {
-            label: (Palette.color-scheme == ColorScheme.light) ? "🌣" : "☽";
-            clicked => {
-                Palette.color-scheme = (Palette.color-scheme == ColorScheme.light) ? ColorScheme.dark : ColorScheme.light;
-            }
-        }
-        WindowButton {
-            label: "X";
-            clicked => { AppData.stop-app(); }
         }
     }
 

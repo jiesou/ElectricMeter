@@ -211,6 +211,9 @@ export async function connect(device_id: string, ws: WSContext, ip = "") {
     update: { ip },
   });
 
+  // 房名一上来就交给设备：屏幕顶上显示的就是这个名
+  sendTo(device_id, { type: "pub_name", name: device.name });
+
   // 刚连上先把当前的人数补给它，不然要等下一个人跨线才有数
   const people = [...device.entities.values()].filter(
     (e) => e.type === "people-counter",

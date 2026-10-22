@@ -57,6 +57,8 @@ rooms.patch("/:device_id", async (c) => {
     where: { id: device_id },
     data: { name: device.name },
   });
+  // 改完顺手告诉设备：它屏幕顶上显示的就是这个名
+  hub.sendTo(device_id, { type: "pub_name", name: device.name });
   return c.json(snapshot().find((room) => room.id === device_id));
 });
 

@@ -1,27 +1,73 @@
 import { Palette } from "std-widgets.slint";
+import { AppData } from "../app-data.slint";
 import { Sizing } from "../sizing.slint";
+
+component HeaderButton inherits Rectangle {
+    in property<string> label: "";
+    callback clicked();
+
+    width: Sizing.small * 140%;
+    height: Sizing.small * 75%;
+    border-radius: self.height * 30%;
+    background: touch.has-hover ? Palette.foreground.with-alpha(15%) : Palette.foreground.with-alpha(7%);
+
+    Text {
+        text: root.label;
+        color: Palette.foreground;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
 
 export component PageHeader {
     in property<string> title: "";
     height: Sizing.small * 125%;
 
-    VerticalLayout {
-        alignment: start;
+    HorizontalLayout {
         padding: Sizing.small * 20%;
         padding-left: Sizing.small * 50%;
-        spacing: Sizing.small * 10%;
+        spacing: Sizing.small * 25%;
 
-        Text {
-            text: root.title;
-            color: Palette.foreground;
-            font-weight: 700;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: start;
+            spacing: Sizing.small * 10%;
+
+            Text {
+                text: root.title;
+                color: Palette.foreground;
+                font-weight: 700;
+            }
+
+            Rectangle {
+                height: Sizing.small * 8%;
+                width: 23%;
+                border-radius: self.height / 2;
+                background: @linear-gradient(90deg, Palette.accent-background 0%, Palette.foreground.with-alpha(50%) 70%, transparent 100%);
+            }
         }
 
-        Rectangle {
-            height: Sizing.small * 8%;
-            width: 23%;
-            border-radius: self.height / 2;
-            background: @linear-gradient(90deg, Palette.accent-background 0%, Palette.foreground.with-alpha(50%) 70%, transparent 100%);
+        HorizontalLayout {
+            spacing: Sizing.small * 25%;
+
+            HeaderButton {
+                label: "⇄";
+                clicked => { AppData.swap-cameras(); }
+            }
+            HeaderButton {
+                label: (Palette.color-scheme == ColorScheme.light) ? "☀" : "☽";
+                clicked => {
+                    Palette.color-scheme = (Palette.color-scheme == ColorScheme.light) ? ColorScheme.dark : ColorScheme.light;
+                }
+            }
+            HeaderButton {
+                label: "X";
+                clicked => { AppData.stop-app(); }
+            }
         }
     }
 }

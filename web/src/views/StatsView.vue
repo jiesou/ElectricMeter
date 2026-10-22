@@ -118,7 +118,10 @@ const hourData = computed<ChartData<"bar">>(() => ({
       @click="picked = r.id"
     >
       <span class="dot" :class="{ live: r.occupied }" />
-      <span class="name">{{ r.name }}</span>
+      <span class="who">
+        <span class="name">{{ r.name }}</span>
+        <span class="id">{{ r.id }}</span>
+      </span>
       <span class="state">{{ r.occupied ? `在住 · 第 ${r.days.length} 天` : "空房" }}</span>
       <span class="kwh num">{{ energy(r.kwh) }}</span>
       <span class="per num">
@@ -193,7 +196,12 @@ const hourData = computed<ChartData<"bar">>(() => ({
       </thead>
       <tbody>
         <tr v-for="b in bills" :key="`${b.device_id}-${b.start_ts}`">
-          <td>{{ b.room }}</td>
+          <td>
+            <span class="who">
+              <span>{{ b.room }}</span>
+              <span class="id">{{ b.device_id }}</span>
+            </span>
+          </td>
           <td>{{ date(b.start_ts) }}</td>
           <td>{{ date(b.end_ts ?? undefined) }}</td>
           <td class="num">{{ b.days }}</td>
@@ -244,6 +252,19 @@ const hourData = computed<ChartData<"bar">>(() => ({
 .dot.live {
   background: var(--green);
   opacity: 1;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.id {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .name {

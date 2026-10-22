@@ -57,7 +57,7 @@ class PeoplePage:
                                        self.calibration.counters,
                                        send=self.sender if self.streaming else None,
                                        counted=self.reporter.notify)
-        self.rows = []
+        self.rows = None  # 空列表也要推一次，不然界面停在上一次（或 slint 里的占位数据）
 
     def start(self):
         self.viewport.start()

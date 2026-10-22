@@ -71,6 +71,13 @@ export interface EntitiesMessage extends WSMessage {
   entities: Entity[];
 }
 
+/* 服务器把房名推给设备：屏幕顶上显示的就是这个名，网页上改名也走这一条 */
+
+export interface PubNameMessage extends WSMessage {
+  type: "pub_name";
+  name: string;
+}
+
 /* 服务器叫设备做事：下通断令，设备干完回执 */
 
 export interface PubActionSwitchMessage extends WSMessage {
