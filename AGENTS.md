@@ -71,7 +71,9 @@
   - `run_video.py` 离线跑视频出人数、`check_udp.py` UDP 图传端到端验收、`scripts/export_yolo11n.py` 导出 ONNX
 - **web/**
   - `src/data.ts`
-  - `src/views/*` —— 客房管理 / 统计数据 / 视频监控 / AI智能体（`AgentView.vue`，对话界面是 assistant-ui 的）
+  - `src/views/*` —— 客房管理 / 统计数据 / 视频监控 / AI智能体（`AgentView.vue`，对话界面是 assistant-ui 的）/ 孪生大屏（`TwinView.vue`，`meta.bare` 全屏无导航）
+  - `src/twin/` —— `scene.ts` 建场景与全景、客房近景取景，`sandbox.ts` 拼江南合院剖切沙盘，`materials.ts` / `surfaces.ts` 管材质；点选客房高亮聚焦，灯与线路随真实读数亮灭流动，`RoomReadings.vue` 是沙盘只读读数面板
+  - `src/assets/textures/` —— 灰泥墙、木地板、庭院石板、草地四张贴图（提示词见同目录 `生成说明.md`）
   - `src/components/assistant-ui/*` —— assistant-ui 注册表原样副本，不动
   - 设计意图见 `.agents/notes/decisions/网页前端设计.md`、`.agents/notes/decisions/智能体界面.md`
 
@@ -82,7 +84,6 @@
 - **业务逻辑** 一个业务一份代码 `core/*.ts` —— 空房大功率告警 / 长时间零用电告警
 - **CLI 接入 MCP** —— 已有 `--json`，包一层 MCP server 就是现成的工具描述
 - **语音** —— 房间内语音助手：开灯、播报当日用电（如"今天已用 3.75 千瓦时"）
-- **数字孪生** —— 房间 3D 数字孪生大屏（Three.js），灯、空调、插座随真实状态动作
 - **部署网络** —— 每房间一个 AP + 机房服务器机柜，服务跑在 **Ubuntu Server + Docker**
 
 ## 分支

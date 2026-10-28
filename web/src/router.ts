@@ -12,5 +12,6 @@ export const router = createRouter({
     { path: "/stats", component: StatsView },
     { path: "/camera", component: CameraView },
     { path: "/agent", component: AgentView },
+    { path: "/twin", component: () => import("./views/TwinView.vue"), meta: { bare: true } },
   ],
 });

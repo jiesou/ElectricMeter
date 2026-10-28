@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from "vue";
-import { RouterLink, RouterView } from "vue-router";
+import { RouterLink, RouterView, useRoute } from "vue-router";
 import { connect, disconnect, toggleMock } from "./data.ts";
+
+const route = useRoute();
 
 function onKey(e: KeyboardEvent) {
   if (e.key === "Home") {
@@ -22,7 +24,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shell">
+  <RouterView v-if="route.meta.bare" />
+  <div v-else class="shell">
     <nav class="nav">
       <RouterLink to="/rooms" class="item" active-class="on">
         <svg
@@ -92,6 +95,12 @@ onUnmounted(() => {
         </svg>
         <span>AI智能体</span>
       </RouterLink>
+      <RouterLink to="/twin" class="item item--twin" active-class="on">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5" />
+        </svg>
+        <span>孪生大屏</span>
+      </RouterLink>
     </nav>
 
     <main class="main">
@@ -149,6 +158,11 @@ onUnmounted(() => {
   background: var(--primary-soft);
 }
 
+/* 沙盘要横屏大画面，窄屏底栏先不占位 */
+.item--twin {
+  display: none;
+}
+
 @media (min-width: 1024px) {
   .shell {
     display: flex;
@@ -179,6 +193,10 @@ onUnmounted(() => {
     padding: 0 10px;
     border-radius: 10px;
     font-size: 15px;
+  }
+
+  .item--twin {
+    display: flex;
   }
 
   .main {
