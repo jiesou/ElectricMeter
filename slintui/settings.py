@@ -67,3 +67,18 @@ class Settings:
 
 
 stored_settings = Settings()
+
+
+def bind_settings(window):
+    data = window.SettingsPageData
+    data.server_ip = stored_settings.get_server_ip()
+    data.model = stored_settings.get("model") or DEFAULT_MODEL
+    data.video = stored_settings.get("video", "") or "摄像头"
+    data.udp = stored_settings.get("image_feed_udp_url", "")
+
+    def save(ip):
+        stored_settings.set_server_ip(ip)
+        data.server_ip = stored_settings.get_server_ip()
+        data.hint = "已保存，重启程序生效"
+
+    data.save = save

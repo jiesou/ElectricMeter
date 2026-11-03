@@ -4,7 +4,12 @@ import json
 import threading
 import urllib.request
 
+import slint
+
 import mock
+
+Room = slint.loader.ui.power_page.Room
+EntityCard = slint.loader.ui.power_page.EntityCard
 
 
 class PowerStream:
@@ -27,6 +32,31 @@ class PowerStream:
         self.mock = not self.mock
         self.stop()
         self.start()
+
+    def set_state(self, device_id, entity_id, state):
+        """乐观更新：本地先翻，下一轮 SSE 推下来的真状态再盖回来"""
+        with self.lock:
+            self.rows = [
+                {**room, "entities": [
+                    {**e, "state": state} if room["id"] == device_id and e["id"] == entity_id else e
+                    for e in room["entities"]
+                ]}
+                for room in self.rows
+            ]
+        if not self.mock:
+            threading.Thread(target=self._post, args=(device_id, entity_id, state), daemon=True).start()
+
+    def _post(self, device_id, entity_id, state):
+        request = urllib.request.Request(
+            f"{self.api_url}/entities/{device_id}/{entity_id}/switch",
+            data=json.dumps({"state": state}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(request, timeout=5).close()
+        except Exception as e:
+            print(f"[Power] 通断令发不出去: {e}")
 
     def snapshot(self):
         with self.lock:
@@ -74,6 +104,7 @@ class PowerStream:
                 "power": f"{room['power']:.0f}",
                 "energy": f"{room['energy']:.2f}",
                 "entities": [{
+                    "id": entity["id"],
                     "name": entity["name"],
                     "type": entity["type"],
                     "state": bool(entity.get("state")),
@@ -82,3 +113,22 @@ class PowerStream:
                 } for entity in room["entities"] if entity["type"] in ("meter", "switch")],
                 "people": people(room),
             } for room in data]
+
+
+def bind_power(window, stream):
+    """把整表快照和通断令接到 PowerPageData；Home 键切 mock 也走同一份快照"""
+    data = window.PowerPageData
+
+    def refresh():
+        data.rooms = slint.ListModel([
+            Room(**{**row, "entities": slint.ListModel([EntityCard(**e) for e in row["entities"]])})
+            for row in stream.snapshot()
+        ])
+
+    def toggle_mock():
+        stream.toggle_mock()
+        refresh()
+
+    data.refresh = refresh
+    data.switch_entity = stream.set_state
+    window.AppData.toggle_mock = toggle_mock

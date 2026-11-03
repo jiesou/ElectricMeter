@@ -36,6 +36,7 @@ component MeterCard inherits Card {
 }
 
 component SwitchCard inherits Card {
+    in property<string> device;
     in property<EntityCard> entity;
 
     VerticalLayout {
@@ -75,6 +76,12 @@ component SwitchCard inherits Card {
             color: root.entity.state ? Palette.accent-background : Palette.foreground.with-alpha(50%);
             font-weight: 700;
             horizontal-alignment: center;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            PowerPageData.switch-entity(root.device, root.entity.id, !root.entity.state);
         }
     }
 }
@@ -160,7 +167,7 @@ component RoomCard inherits Rectangle {
                 height: Sizing.screen-width * 20%;
 
                 if entity.type == "meter" : MeterCard { entity: entity; }
-                if entity.type == "switch" : SwitchCard { entity: entity; }
+                if entity.type == "switch" : SwitchCard { device: root.room.id; entity: entity; }
             }
         }
     }

@@ -1,19 +1,30 @@
 """客房管理页的 mock 数据：不连服务器时给大屏看的一屏数据，形状与真实快照一致。"""
 
 
-def meter(name, power, energy):
-    return {"name": name, "type": "meter", "state": False, "power": power, "energy": f"{energy:.2f}"}
+def meter(id, name, power, energy):
+    return {
+        "id": id + "-meter", "name": name, "type": "meter",
+        "state": False, "power": power, "energy": f"{energy:.2f}",
+    }
 
 
-def switch(name, state):
-    return {"name": name, "type": "switch", "state": state, "power": 0, "energy": ""}
+def switch(id, name, state):
+    return {"id": id, "name": name, "type": "switch", "state": state, "power": 0, "energy": ""}
 
 
-APPLIANCES = [("灯", 55, 3.42), ("热水壶", 1600, 18.4), ("吹风机", 900, 46.2)]
+APPLIANCES = [
+    ("light", "灯", 55, 3.42),
+    ("kettle", "热水壶", 1600, 18.4),
+    ("dryer", "吹风机", 900, 46.2),
+]
 
 
 def circuits(state):
-    return [e for name, power, energy in APPLIANCES for e in (meter(f"{name}功率", power, energy), switch(name, state))]
+    return [
+        e
+        for id, name, power, energy in APPLIANCES
+        for e in (meter(id, f"{name}功率", power, energy), switch(id, name, state))
+    ]
 
 
 def room(name, online, entities):
