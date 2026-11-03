@@ -83,6 +83,46 @@ prog
     });
   });
 
+/** on/off（也收 true/false、1/0）→ boolean */
+function parseState(v: string) {
+  if (["on", "true", "1"].includes(v)) return true;
+  if (["off", "false", "0"].includes(v)) return false;
+  throw new CliError(`开关状态用 on / off：${v}`);
+}
+
+prog
+  .command("action")
+  .description("给实体下发动作：em action on esp-301/light")
+  .argument("<state>", "on 或 off")
+  .argument("<ref>", "实体引用，写作 设备ID/实体ID，如 3a0c1a/light")
+  .action(async (state: string, ref: string) => {
+    await run(async (api) => {
+      const on = parseState(state);
+      const { device_id, id } = parseRef(ref);
+      await api.post(`/entities/${device_id}/${id}/switch`, { state: on });
+      const result = { device_id, id, state: on };
+      console.log(
+        json()
+          ? JSON.stringify(result, null, 2)
+          : `${ref} → ${on ? "通电" : "断电"}`,
+      );
+    });
+  });
+
+prog
+  .command("sleep")
+  .description("等待指定毫秒数，用于分步操作之间的间隔")
+  .argument("<ms>", "毫秒数")
+  .action(async (ms: string) => {
+    const n = Number(ms);
+    if (!Number.isFinite(n) || n < 0) {
+      console.error(pc.red(`等待时长要写成毫秒数：${ms}`));
+      process.exit(1);
+    }
+    await Bun.sleep(n);
+    console.log(json() ? JSON.stringify({ slept: n }) : `已等待 ${n}ms`);
+  });
+
 prog
   .command("watch")
   .description("实时快照流：每秒整屏刷新，Ctrl-C 退出")

@@ -48,6 +48,30 @@ test("devices / entities / show", async () => {
   expect((await em(["show", "esp-301/light"])).stdout).toContain("灯");
 });
 
+test("action：下通断令，--json 回执", async () => {
+  const p = await em(["action", "on", "esp-301/light"]);
+  expect(p.exitCode).toBe(0);
+  expect(p.stdout).toContain("通电");
+  const result = JSON.parse(
+    (await em(["--json", "action", "off", "esp-301/light"])).stdout,
+  );
+  expect(result).toEqual({ device_id: "esp-301", id: "light", state: false });
+});
+
+test("action：未知实体错误透出", async () => {
+  const p = await em(["action", "on", "esp-301/nope"]);
+  expect(p.exitCode).toBe(1);
+  expect(p.stderr).toContain("未知实体: esp-301/nope");
+});
+
+test("sleep：等待指定毫秒", async () => {
+  const started = Date.now();
+  const p = await em(["--json", "sleep", "120"]);
+  expect(p.exitCode).toBe(0);
+  expect(JSON.parse(p.stdout)).toEqual({ slept: 120 });
+  expect(Date.now() - started).toBeGreaterThanOrEqual(110);
+});
+
 test("未知实体：文案透出，退出码 1", async () => {
   const p = await em(["show", "esp-301/nope"]);
   expect(p.exitCode).toBe(1);
@@ -88,6 +112,8 @@ test("--help 列出全部命令与全局参数", async () => {
     "devices",
     "entities",
     "show",
+    "action",
+    "sleep",
     "watch",
     "--json",
     "--host",

@@ -52,8 +52,18 @@ export const entities: Entity[] = [
 export const startStub = () =>
   Bun.serve({
     port: 0,
-    fetch(req) {
+    async fetch(req) {
       const url = new URL(req.url);
+      const action = url.pathname.match(
+        /^\/api\/entities\/([^/]+)\/([^/]+)\/switch$/,
+      );
+      if (req.method === "POST" && action) {
+        const [, device_id, id] = action;
+        if (id === "nope")
+          return Response.json({ error: `未知实体: ${device_id}/${id}` }, { status: 404 });
+        const { state } = (await req.json()) as { state: boolean };
+        return Response.json({ id, state });
+      }
       if (url.pathname === "/api/rooms") return Response.json(rooms);
       if (url.pathname === "/api/devices") return Response.json(devices);
       if (url.pathname === "/api/entities") return Response.json(entities);

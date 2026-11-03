@@ -6,6 +6,7 @@ export class CliError extends Error {}
 
 export interface Api {
   get<T>(path: string): Promise<T>;
+  post<T>(path: string, body: unknown): Promise<T>;
   sse<T>(path: string, on: (snapshot: T) => void): Promise<void>;
 }
 
@@ -19,10 +20,10 @@ export function resolveHost(flag?: string): string {
 export function createApi(host: string): Api {
   const base = `${host}/api`;
 
-  const open = async (path: string): Promise<Response> => {
+  const open = async (path: string, init?: RequestInit): Promise<Response> => {
     let res: Response;
     try {
-      res = await fetch(base + path);
+      res = await fetch(base + path, init);
     } catch {
       throw new CliError(
         `连不上 ${host}，先起 server：bun run --cwd server dev（或用 --host= / EM_HOST= 指定地址）`,
@@ -40,6 +41,16 @@ export function createApi(host: string): Api {
   return {
     async get<T>(path: string): Promise<T> {
       const res = await open(path);
+      return (await res.json()) as T;
+    },
+
+    /** POST JSON：下通断令这类会改状态的操作 */
+    async post<T>(path: string, body: unknown): Promise<T> {
+      const res = await open(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
       return (await res.json()) as T;
     },
 

@@ -32,6 +32,23 @@ describe("api.get", () => {
   });
 });
 
+describe("api.post", () => {
+  test("下通断令拿回执", async () => {
+    expect(
+      await api.post<{ id: string; state: boolean }>(
+        "/entities/esp-301/light/switch",
+        { state: true },
+      ),
+    ).toEqual({ id: "light", state: true });
+  });
+
+  test("服务端 404 文案原样透出", async () => {
+    expect(
+      api.post("/entities/esp-301/nope/switch", { state: true }),
+    ).rejects.toThrow("未知实体: esp-301/nope");
+  });
+});
+
 describe("api.sse", () => {
   test("逐条回调快照", async () => {
     const seen: unknown[] = [];

@@ -6,8 +6,8 @@ import { z } from "zod";
 export const system = [
   "你是民宿智能用电系统的助手，服务对象是民宿老板和运维。",
   "回答用中文，简短，能用数字就用数字，说不出所以然的话不要说。",
-  "问到现在的情况、用电量、设备状态，先调工具拿真实数据，不要凭印象回答。",
-  "em 是本项目的 CLI 控制工具。即“智能电能表”",
+  "em 是本项目的 CLI 控制工具。即“智能电能表”。",
+  "要按顺序做事时，一次只调一个工具，看到结果再调下一个；缓启动/逐个上电就是 action、sleep、再 action。",
 ].join("\n");
 
 /** 跑本项目的 CLI，把它的输出当工具结果交回模型 */
@@ -29,7 +29,7 @@ async function runCli(args: string[]) {
 export const tools = {
   electricmeter: tool({
     description:
-      "执行 ElectricMeter 查客房与设备，参数是 em CLI 的子命令与选项，如 [\"rooms\"]、[\"entities\",\"-d\",\"esp-301\"]",
+      "执行 ElectricMeter 的 em CLI，查状态或下指令；参数是子命令与选项，如 [\"rooms\"]、[\"show\",\"esp-301/light\"]、[\"action\",\"on\",\"esp-301/light\"]、[\"sleep\",\"500\"]",
     inputSchema: z.object({ args: z.array(z.string()) }),
     execute: ({ args }) => runCli(args),
   }),

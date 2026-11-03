@@ -31,6 +31,8 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
     `ws://127.0.0.1:${server.port}/ws?device_id=esp-905`,
   );
   await new Promise((r) => (ws.onopen = r));
+  const received: any[] = [];
+  ws.onmessage = (e) => received.push(JSON.parse(String(e.data)));
   await delay(50);
   ws.send(
     JSON.stringify({
@@ -69,6 +71,15 @@ test("cli 连真 server：设备上报 → 总览/清单/详情/JSON/watch 全�
   expect(rooms.find((r: any) => r.id === "esp-905")).toMatchObject({
     power: 900,
     energy: 46.2,
+  });
+
+  const action = await em(["action", "off", "esp-905/light"]);
+  expect(action.exitCode).toBe(0);
+  await delay(100);
+  expect(received.at(-1)).toMatchObject({
+    type: "pub_action_switch",
+    id: "light",
+    state: false,
   });
 
   const bad = await em(["show", "esp-905/nope"]);
