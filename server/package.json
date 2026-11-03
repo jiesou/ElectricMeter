@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run db:push && bun run --watch index.ts",
-    "start": "bun run db:push && bun run index.ts",
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
     "sim": "bun run simulator/esp32.ts",
     "check": "bunx tsc --noEmit -p tsconfig.json",
     "db:push": "bunx prisma generate && bunx prisma db push",
